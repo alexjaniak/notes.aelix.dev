@@ -17,7 +17,7 @@ Every inference request has two distinct stages with completely different perfor
 
 **Generation (decode)**: the model produces new tokens one at a time. Each token depends on all previous ones, so there's no parallelizing across the sequence. Every step requires reading the _entire_ model's weights from HBM to produce a single token. Generation is **memory-bound**.
 
-This is the core asymmetry of inference. Training lets you parallelize over the full sequence; generation forces you through it serially. Recall from the last post that GPUs are throughput machines: thousands of slow threads doing bulk arithmetic. Sequential token-by-token generation is close to the worst-case workload for them.
+This is the core asymmetry of inference. Training lets you parallelize over the full sequence; generation forces you through it serially. Recall from the last post <need hyperlink> that GPUs are specialized in throughput: thousands of slow threads doing bulk arithmetic. Sequential token-by-token generation is close to the worst-case workload for them.
 
 ## Metrics
 
