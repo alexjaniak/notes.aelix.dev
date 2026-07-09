@@ -1,11 +1,12 @@
 OpenAI's API alone processes [~6 billion tokens per minute](https://www.pymnts.com/artificial-intelligence-2/2025/openai-bests-google-in-race-for-consumer-ai-token-consumption/), roughly 8.6 trillion tokens _per day_. For comparison, [DeepSeek-V4](https://arxiv.org/abs/2606.19348), a frontier open-source model, was pre-trained on 32 trillion tokens _total_. OpenAI re-spends a frontier training run's worth of tokens on inference every four days.
 
-And serving end-users via the API is only part of it. The inference stacks extends to: 
+And serving end-users via the API is only a part of it. The inference stacks extends to: 
 - **Evals**: benchmarking a model means generating millions of tokens. Slow inference butchers iteration. 
-- **RL**: modern post-training (RLHF, GRPO, agentic RL) generates rollouts on-policy; so Inference throughput directly gates training speed. With large frontier models spending [tens of thousands of tokens *reasoning*](https://www.saastr.com/the-real-data-on-ai-agents-what-1-trillion-tokens-a-day-reveals-with-openrouters-coo/) prior to answering, this only compounds.
+- **RL**: modern post-training (RLHF, GRPO, agentic RL) generates rollouts on-policy; so Inference throughput directly gates training speed. With large frontier models spending [thousands of tokens *reasoning*](https://www.saastr.com/the-real-data-on-ai-agents-what-1-trillion-tokens-a-day-reveals-with-openrouters-coo/), this only compounds.
 
-Given this, it shouldn't be surprising that the efficiency of model inference is dominating the economics of AI, especially when it shows up everywhere in the stakc
-Unfortunately, inference is _hard to make efficient_ in a way training fundamentally isn't, and the reason is memory, not FLOPs. If you can move 
+Given this, it shouldn't be surprising that the **efficiency** of model inference is dominating the economics of AI, especially when time spent on the GPU is so precious. 
+
+Unfortunately, inference is _hard to make efficient_ in a way training fundamentally isn't, and the reason is memory, not FLOPs. If you can't move bytes fast enough, it doesn't matter how many FLOPs you're 1000 GPU Pod can do. 
 
 ## Two Phases: Prefill and Generation
 Every inference request has two distinct stages with completely different performance characteristics.
