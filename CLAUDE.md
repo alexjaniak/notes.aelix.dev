@@ -28,6 +28,30 @@ when the topic is genuinely distinct from anything that already exists.
   and push in one step.
 - Use short, plain commit messages describing what changed.
 
+## Auto-publish (launchd, Alex's Mac only)
+
+Set up 2026-07-13. A background job commits and pushes the vault every 3 hours
+(at :15 past 12am/3/6/9am/12pm/3/6/9pm), which triggers the normal GitHub
+Actions deploy. If nothing changed, it does nothing.
+
+- Script: `~/.local/bin/aelix-notes-autosync.sh` (commits as `notes: auto-sync`,
+  rebases on origin/main, pushes)
+- Job definition: `~/Library/LaunchAgents/dev.aelix.notes-autosync.plist`
+- Log: `~/Library/Logs/aelix-notes-autosync.log`
+- Requires `/bin/zsh` in System Settings → Privacy & Security → Full Disk
+  Access (macOS otherwise blocks background jobs from `~/Documents`)
+
+Implication: anything saved in the vault publishes within 3 hours. Keep
+unfinished posts out of `Research/Blog/` or give them `draft: true` frontmatter.
+
+Manage it:
+
+- Pause: `launchctl bootout gui/501/dev.aelix.notes-autosync`
+- Resume: `launchctl bootstrap gui/501 ~/Library/LaunchAgents/dev.aelix.notes-autosync.plist`
+- Run now: `launchctl kickstart gui/501/dev.aelix.notes-autosync`
+- Remove for good: pause as above, then delete the plist and the script, and
+  optionally remove zsh from Full Disk Access.
+
 ## Privacy
 
 This repo is public. Anything committed and pushed is visible on GitHub, whether
