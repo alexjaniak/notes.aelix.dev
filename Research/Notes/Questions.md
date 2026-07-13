@@ -1,19 +1,19 @@
 ## GPU Markets
-* Where can I rent GPUs?
-* At a technical level, how do you access a rental GPU? Can you write custom kernels without owning one? 
-* What chips are being used at the frontier? Are SRAM machines hype? 
+* Where can I rent GPUs? → [[GPU Rental Markets]]
+* At a technical level, how do you access a rental GPU? Can you write custom kernels without owning one? → [[GPU Rental Markets]]
+* What chips are being used at the frontier? Are SRAM machines hype? → [[Frontier Chips]]
 
 
 ## Inference
-* If everyone is to have their own model weights, how will these be served? How hard is switching models for inference? Do you need to rent GPUs seperately? 
+* If everyone is to have their own model weights, how will these be served? How hard is switching models for inference? Do you need to rent GPUs seperately? → [[Serving Models]]
   
-* Why is cost to serve models decreasing so much? GPU prices don't seem to be dumping. What are the other factors?
+* Why is cost to serve models decreasing so much? GPU prices don't seem to be dumping. What are the other factors? → [[Inference Economics]]
 
-* Most of the inference efficiency improvements include accuracy loss, how do people know they are getting served the right model?
+* Most of the inference efficiency improvements include accuracy loss, how do people know they are getting served the right model? → [[Inference Economics]]
 
-* What do inference libraries like vLLM do, really? 
+* What do inference libraries like vLLM do, really? → [[Serving Models]]
 
-* At a technical level, how do you serve a model? 
+* At a technical level, how do you serve a model? → [[Serving Models]]
 ## Agents / RL / Fine-Tuning
 * What's the difference between what Prime Intellect and Thinking Machines offers?
 * What are other products for RL/Fine-Tuning as a service
