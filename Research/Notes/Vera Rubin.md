@@ -16,6 +16,7 @@
 | ------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | **HGX Rubin NVL8**  | 8-GPU baseboard with NVLink | For orgs that want Rubin GPUs but their own servers/CPUs — pairs with x86 (Intel/AMD) or Vera. The OEM building block |
 | **Vera Rubin NVL4** | 4 GPUs + 2 Vera CPUs module | Smaller HPC/scientific-computing form factor for MGX servers                                                          |
+|                     |                             |                                                                                                                       |
 
 | Rack                 | What it is                                               | Why it exists                                                                                                                                                                               |
 | -------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

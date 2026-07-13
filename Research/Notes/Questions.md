@@ -1,11 +1,19 @@
-## Inference
-* If everyone is to have their own model weights, how will these be served? How hard is switching models for inference?
-* Why is cost to serve models decreasing so much? GPU prices don't seem to be dumping. What are the other factors?
-* Most of the inference efficiency improvements include accuracy loss, how do people know they are getting served the right model?
-* What do inference libraries like vLLM do, really? 
-* How do you serve a model? 
-* How do you access a rental GPU? Can you write custom kernels without owning one? 
+## GPU Markets
+* Where can I rent GPUs?
+* At a technical level, how do you access a rental GPU? Can you write custom kernels without owning one? 
 * What chips are being used at the frontier? Are SRAM machines hype? 
+
+
+## Inference
+* If everyone is to have their own model weights, how will these be served? How hard is switching models for inference? Do you need to rent GPUs seperately? 
+  
+* Why is cost to serve models decreasing so much? GPU prices don't seem to be dumping. What are the other factors?
+
+* Most of the inference efficiency improvements include accuracy loss, how do people know they are getting served the right model?
+
+* What do inference libraries like vLLM do, really? 
+
+* At a technical level, how do you serve a model? 
 ## Agents / RL / Fine-Tuning
 * What's the difference between what Prime Intellect and Thinking Machines offers?
 * What are other products for RL/Fine-Tuning as a service
