@@ -2,11 +2,11 @@
 
 When a market has an information asymmetry, where suppliers can observe product quality and buyers can't, buyers purchase at the expected quality of the pool. They don't know better. Sellers of above-average goods can't get paid for the difference, so they exit; the pool degrades, buyers rationally mark down further, and the equilibrium unravels toward only 'lemons' trading. The mechanism requires no bad actors, only an information asymmetry and a pooled price. This was George Akerlof's insight in his seminal 1970 paper "The Market for 'Lemons'" and the catalyst for the field of information economics.
 
-The current state of third-party LLM inference satisfies both conditions. Open weights collapse the model layer into a commodity: within weeks of DeepSeek V4 Pro's release, five of six providers converged on an identical $2.17/M blended price. And the asymmetry is structural: token buyers only receive tokens and aren't privy to the computations behind them.
+Third-party LLM inference often satisfies both conditions. Open weights collapse the model layer into a commodity: within weeks of DeepSeek V4 Pro's release, five of six providers converged on an identical $2.17/M blended price. And the asymmetry is structural: token buyers only receive tokens and aren't privy to the computations behind them.
 
 Competition among providers serving supposedly "identical" weights runs on two observable metrics: cost and speed. [Artificial Analysis](https://artificialanalysis.ai/models/deepseek-v4-pro/providers) benchmarks every major endpoint on $/M tokens, throughput, and time-to-first-token, and providers [advertise their positions](https://fireworks.ai/blog/blazing-fast-inference-on-top-oss-models) on that frontier. Unfortunately, many of the methods that allow providers to reach the fast, cheap end of that frontier involve degrading fidelity. Quality verification is left to the buyer, must be repeated as serving stacks change, and so almost no one does it. Token buyers are left hoping they got the model on the label.
 
-The concern is not hypothetical. [Gao et al. (ICLR 2025)](https://arxiv.org/abs/2410.20247) formalized the audit problem as Model Equality Testing: a two-sample test that compares an API's output distribution against the reference weights, cheap enough to run for under a dollar per endpoint. Applied to 31 commercial endpoints serving four Llama models across nine providers in Summer 2024, the test found that 11 of 31 deviated statistically from Meta's reference weights. The worst case was Perplexity, whose Llama-3 8B endpoint's outputs were further from the reference distribution than an entirely different model's. Only two of nine providers disclosed any distribution-altering optimizations.
+Historically, the concern has not been hypothetical either. [Gao et al. (ICLR 2025)](https://arxiv.org/abs/2410.20247) formalized the audit problem as *Model Equality Testing*: a two-sample test that compares an API's output distribution against the reference weights, cheap enough to run for under a dollar per endpoint. Applied to 31 commercial endpoints serving four Llama models across nine providers in Summer 2024, the test found that 11 of 31 deviated statistically from Meta's reference weights. The worst case was [Perplexity](https://x.com/perplexity_ai?lang=en), whose Llama-3 8B endpoint's outputs were further from the reference distribution than an entirely different model's. Only two of nine providers disclosed any distribution-altering optimizations.
 
 Similarly, in October 2025, [Moonshot's K2 Vendor Verifier](https://github.com/MoonshotAI/K2-Vendor-Verifier) found that on 4,000 tool-call prompts scored against the official API, third-party endpoints ranged from 100% schema conformance down to [50.6%](https://medium.com/@kimi_moonshot/announcing-the-k2-vendor-verifier-ensuring-consistent-toolcall-performance-for-kimi-k2-04c568f4a1dd).
 
@@ -15,9 +15,22 @@ So are we going to be left with lemons?
 Akerlof's paper predicts the degradation of such markets, but it also enumerates remedies: disclosure, reputation, certification, and technologies that make quality observable. All four now exist for model inference in embryonic form.
 
 This post covers why serving costs fell ~10x/year, which of the optimizations behind that decline are output-preserving and which are not, and whether the emerging verification layer can clear the market before it unravels. 
-## "LLMflation"
 
-![[llm-inference-price-trends.png]]
+![[Screenshot 2026-07-14 at 12.11.41 PM.png|697]]
+![[Screenshot 2026-07-14 at 12.12.00 PM.png]]
+
+A [MIT FutureTech estimate](https://arxiv.org/abs/2511.23455) found that between April 2024 and November 2025 constant-quality inference plummeted at **~5-10x** per year, of which **~3x** is attributable to algorithmic efficiency. Interestingly, the FutureTech estimate found that that higher-performance models dropped almost 32x per year, with less performant models only 
+
+asd
+
+
+An a16z blog by Guide Appenzeller aptly dubbed this  ["LLMflation"](https://a16z.com/llmflation-llm-inference-cost/).
+
+There is no research for c
+
+The overall price for accessing a given level of LLM performance has dropped significantly, by 5× to 10× per year, although still substantially less than the reported 1000× upper bound by Cottier et al. (2025). However, like Cottier et al. (2025), we find much larger price declines for higher-performance models—almost 32× per year. For the least performant models, by contrast, we see much smaller price declines, around 1.7× per year, close to the estimates for energy efficiency improvements in AI models overall
+
+So why is the cost 
 
 Constant-quality inference cost falls **~10x/year** ([a16z "LLMflation"](https://a16z.com/llmflation-llm-inference-cost/), Guido Appenzeller, Nov 2024): GPT-3-level output (MMLU 42) cost $60/M tokens in Nov 2021 → $0.06/M (Llama 3.2 3B on Together) in late 2024 = 1,000x in 3 years.
 
@@ -30,6 +43,12 @@ A more careful MIT FutureTech estimate ([*The Price of Progress*](https://arxiv.
 Crucial counterpoint from the same paper: the cost of running the *frontier* model is simultaneously **rising** 3–18x/yr (bigger models + longer reasoning traces) — cheapness is at fixed capability, not at the frontier.
 
 ## Why is cost-to-serve plummeting?
+
+Epoch AI found that 
+
+
+
+![[Screenshot 2026-07-14 at 12.12.00 PM.png]]
 
 A 2026 econometric decomposition ([*Tiered Super-Moore's Law*](https://arxiv.org/abs/2603.28576), using OpenRouter + Epoch data) attributes essentially all of the ~600x 2020–2026 decline to software/algorithms (TFP residual ≈ 103.7% of cost reduction) and ~0% to GPU hardware (−0.9%): 
 
