@@ -16,82 +16,42 @@ Akerlof's paper predicts the degradation of such markets, but it also enumerates
 
 This post covers why serving costs fell ~10x/year, which of the optimizations behind that decline are output-preserving and which are not, and whether the emerging verification layer can clear the market before it unravels. 
 
-![[Screenshot 2026-07-14 at 12.11.41 PM.png|697]]
-![[Screenshot 2026-07-14 at 12.12.00 PM.png]]
+## "LLMflation"
+![[Screenshot 2026-07-14 at 12.11.41 PM.png|623]]
 
-A [MIT FutureTech estimate](https://arxiv.org/abs/2511.23455) found that between April 2024 and November 2025 constant-quality inference plummeted at **~5-10x** per year, of which **~3x** is attributable to algorithmic efficiency. Interestingly, the FutureTech estimate found that that higher-performance models dropped almost 32x per year, with less performant models only 
+A [MIT FutureTech estimate](https://arxiv.org/abs/2511.23455) found that, between April 2024 and November 2025, constant-quality inference plummeted at **~5-10x** per year, of which **~3x** is attributable to algorithmic efficiency. The findings also show that higher-performance models dropped almost 32x per year, with less performant models only around 1.7x per year. An a16z blog by Guide Appenzeller aptly dubbed this phenomenon ["LLMflation"](https://a16z.com/llmflation-llm-inference-cost/).
 
-asd
+Interestingly, the study also found that the cost of running the frontier model is simultaneously rising 3-18x per year. So the industry is seeing increasing costs to push frontier capabilities, but decreasing costs to serve older capabilities behind that frontier. 
 
+Note that these estimates are respective to fixed capabilities, i.e., progress in a benchmark like GPQA-D, not any individual model. 
 
-An a16z blog by Guide Appenzeller aptly dubbed this  ["LLMflation"](https://a16z.com/llmflation-llm-inference-cost/).
+![[Screenshot 2026-07-14 at 1.03.46 PM.png]]
 
-There is no research for c
-
-The overall price for accessing a given level of LLM performance has dropped significantly, by 5× to 10× per year, although still substantially less than the reported 1000× upper bound by Cottier et al. (2025). However, like Cottier et al. (2025), we find much larger price declines for higher-performance models—almost 32× per year. For the least performant models, by contrast, we see much smaller price declines, around 1.7× per year, close to the estimates for energy efficiency improvements in AI models overall
-
-So why is the cost 
-
-Constant-quality inference cost falls **~10x/year** ([a16z "LLMflation"](https://a16z.com/llmflation-llm-inference-cost/), Guido Appenzeller, Nov 2024): GPT-3-level output (MMLU 42) cost $60/M tokens in Nov 2021 → $0.06/M (Llama 3.2 3B on Together) in late 2024 = 1,000x in 3 years.
-
-[Epoch AI](https://epoch.ai/data-insights/llm-inference-price-trends) measures 9–900x/yr depending on the benchmark milestone (GPT-4-level GPQA fell 40x/yr), with the fastest drops in the most recent year. 
-
-The [Stanford HAI AI Index 2025](https://hai.stanford.edu/ai-index/2025-ai-index-report): GPT-3.5-level (MMLU 64.8) fell $20.00/M (Nov 2022) → $0.07/M (Oct 2024), more than 280-fold. 
-
-A more careful MIT FutureTech estimate ([*The Price of Progress*](https://arxiv.org/abs/2511.23455), Gundlach et al.): 5–10x/yr at the benchmark level, of which **~3x/yr is pure algorithmic efficiency**.
-
-Crucial counterpoint from the same paper: the cost of running the *frontier* model is simultaneously **rising** 3–18x/yr (bigger models + longer reasoning traces) — cheapness is at fixed capability, not at the frontier.
+On a per-model basis, we see predictable behavior expected from a competitive market. We found that 
 
 ## Why is cost-to-serve plummeting?
 
-Epoch AI found that 
+The decline comes from many sources, 
 
+many sources: algorithms, serving software, hardware economics, competition. These sources can also be grouped into who has the optimization choice.
 
+**Model-creator choices** are baked into the model architecture and weights, often disclosed in the model card. The biggest is likely [distillation](https://arxiv.org/abs/1503.02531), which compresses capabilities into cheaper mini/flash tiers: [Gemini 3 Flash](https://artificialanalysis.ai/articles/gemini-3-flash-everything-you-need-to-know) launched at half the price of 3 Pro while giving up just 2 points on Artificial Analysis's Intelligence Index. The rest is architecture, and [DeepSeek-V3](https://arxiv.org/abs/2412.19437) illustrates it well. Its [MoE sparsity](https://arxiv.org/abs/1701.06538) means you only pay for active parameters, 37B of its 671B total. And its [MLA](https://arxiv.org/abs/2405.04434) compresses the KV cache, ~70 KB per token versus ~516 KB for Llama-3.1-405B ([Hardware Reflections](https://arxiv.org/abs/2505.09343)).
 
-![[Screenshot 2026-07-14 at 12.12.00 PM.png]]
+On the other hand, **provider choices** can be hard to detect for the buyer. 
 
-A 2026 econometric decomposition ([*Tiered Super-Moore's Law*](https://arxiv.org/abs/2603.28576), using OpenRouter + Epoch data) attributes essentially all of the ~600x 2020–2026 decline to software/algorithms (TFP residual ≈ 103.7% of cost reduction) and ~0% to GPU hardware (−0.9%): 
+Many are lossless: kernel optimizations like [FlashAttention](https://arxiv.org/abs/2205.14135), [continuous batching](https://www.anyscale.com/blog/continuous-batching-llm-inference), [PagedAttention](https://arxiv.org/abs/2309.06180), prefix caching, and speculative decoding. Each change how the weights are served without adjusting the output distribution and can have a dramatic effect: on [InferenceMAX](https://newsletter.semianalysis.com/p/inferencemax-open-source-inference), [NVIDIA reported](https://blogs.nvidia.com/blog/blackwell-inferencemax-benchmark-results/) B200 cost on gpt-oss-120b falling from $0.11 to $0.02 per million tokens in two months, purely from software updates. Indeed, there is also lossy techniques of various degrees, quantization and KV cache eviction among them. These push the frontier for speed and price, but at the cost of accuracy. We'll cover some of these in the next section. 
 
-**Algorithmic efficiency (~3x/yr alone)**
-* distillation of frontier models into mini/flash tiers (probably the single biggest driver). 
-	* Get example
-* MoE sparsity ([DeepSeek-V3](https://arxiv.org/abs/2412.19437): 671B total / 37B active — you pay for active params only)
-* **MLA** compressing the KV cache ~7.3x vs Llama-3.1-405B (70 KB/token vs 516 KB, per DeepSeek's [hardware-reflections paper](https://arxiv.org/abs/2505.09343) — the cheap-long-context unlock); 
-	* What is MLA? 
-* quantization FP16→FP8→FP4 (Llama-70B at NVFP4 ≈ 43 GB at ~98–99% of BF16 quality). 
-	* Doesn't this need to be cited? 
+**Hardware** supplies the rest, and while also at the discretion of the provider, it's coarser and unlikely to change the output distribution. H100 to B200 is roughly 4x decode throughput like-for-like, netting ~3x cheaper per million tokens. Another hardware story is in rental economics: H100s fell from ~$8/hr in 2023 to $1.20-3.50 today ([_How the GPU Bubble Burst_](https://www.latent.space/p/gpu-bubble)), so tokens per dollar per GPU-hour cratered even though chip prices never did.
 
-Serving Software Multipliers: 
-* continuous batching (up to ~23x), PagedAttention (2–4x), prefix caching (up to 5x), speculative decoding (2–3x, output-identical), prefill/decode disaggregation (+59–498% goodput)
-	* what is this stuff and where are these numbrrs from
-* On SemiAnalysis's [InferenceMAX](https://newsletter.semianalysis.com/p/inferencemax-open-source-inference) benchmark, [NVIDIA reported](https://blogs.nvidia.com/blog/blackwell-inferencemax-benchmark-results/) B200 cost/M tokens on gpt-oss-120b falling $0.11 → $0.02 in two months *purely from software* (TensorRT-LLM updates)
+And competition converts it all into price. Open weights commoditize the model layer, so any capability that ships openly triggers an instant price war: [five of six providers at an identical $2.17/M](https://deepinfra.com/blog/deepseek-v4-pro-max-api-benchmarks-latency-throughput-cost) for DeepSeek V4 Pro within weeks. Nor is this loss-leader pricing anymore: DeepSeek [disclosed](https://github.com/deepseek-ai/open-infra-index/blob/main/202502OpenSourceWeek/day_6_one_more_thing_deepseekV3R1_inference_system_overview.md) an 84.5% theoretical gross margin on R1, and [SemiAnalysis](https://newsletter.semianalysis.com/p/anthropic-growth-and-bedrock-mix) estimates Anthropic's inference margins reached the mid-60s by 2026.
 
-Hardware Generations
-* H100→B200 like-for-like ≈ 4x decode throughput ≈ ~3x cheaper/M tokens on-demand; NVIDIA's "25–30x" claims are rack-scale GB200-vs-H100-BF16 comparisons.
-	* What evidence is there for this?
+So the ~10x/yr decline is real and mostly honest. But it's produced by two kinds of optimization, and only one of them is observable. When price competition pins everyone to the same $2.17/M, the remaining margin lever lives entirely in the provider layer, the one the buyer can't see.
 
-**GPU *rental* prices did crash even though chip ASPs didn't**: H100 $8/hr (2023) → ~$2.85 (early 2024) → $1.20–3.50/hr (Q2 2026) — see [*$2 H100s: How the GPU Bubble Burst*](https://www.latent.space/p/gpu-bubble) (Eugene Cheah, Oct 2024). The right unit is tokens/$/GPU-hour, not chip sticker price
-* how big of a factor is this? 
+## Silent Degredation
 
-**Utilization**: batching amortizes one weight-load across many users; interactivity (tok/s/user) is the dial providers turn between margin and UX
+The silent truth is that 
 
-**Prompt caching as pricing**: cache reads at 10% of input price ([Anthropic](https://platform.claude.com/docs/en/build-with-claude/prompt-caching); [DeepSeek](https://api-docs.deepseek.com/news/news0802/) started at 10% in Aug 2024, now ~2% on V4 Flash) — agentic workloads have high hit ratios, so *effective* $/token fell faster than list prices
-* so the price for caches fell or?
-
-**Competition**: open weights commoditize the model layer — any capability appearing in open weights gets instant multi-provider price war ([five of six providers converged at $2.17/M blended](https://deepinfra.com/blog/deepseek-v4-pro-max-api-benchmarks-latency-throughput-cost) for DeepSeek V4 Pro Max). DeepSeek then made its 75% cut [permanent](https://api-docs.deepseek.com/quick_start/pricing/) (May 2026: $0.435/$0.87 per M, 1M context)
-
-**Is it below cost?** Mostly not anymore. DeepSeek [disclosed](https://github.com/deepseek-ai/open-infra-index/blob/main/202502OpenSourceWeek/day_6_one_more_thing_deepseekV3R1_inference_system_overview.md) (Feb 2025 data; [Reuters](https://www.reuters.com/technology/chinas-deepseek-claims-theoretical-cost-profit-ratio-545-per-day-2025-03-01/)) a theoretical 545% cost-profit ratio = **84.5% gross margin** at R1 list prices ($87k/day cost vs $562k theoretical revenue).
-
- [SemiAnalysis](https://newsletter.semianalysis.com/p/anthropic-growth-and-bedrock-mix) estimates Anthropic inference gross margins went **−94% (2024) → 38% (2025) → mid-60s (2026)**. Loss-leader pricing was real in 2023–24; the subsidy today lives in subscriptions (Max/Pro plans deliver far above list-price token value) and free tiers, not the API.
-
-**One-line answer:** GPU chips aren't cheaper, but everything around them is — ~3x/yr algorithms, big software-serving multipliers, hardware $/perf gains plus collapsed rental prices, and open-weights competition compressing margins — compounding to ~10x/yr at fixed quality.
-
-## 
-
-If there is a market for it, aka if there is the opportunity for scamming, it will happen
-	find a quote for this
-
-The unfortunate truth is that no one knows what model you are serving, and you can silently degrade it to stay at the perado frontier
+no one knows what model you are serving, and you can silently degrade it to stay at the perado frontier
 
 Third-party inference is now a serious business growing at venture-fantasy rates. Enterprise LLM API spend hit $8.4B by mid-2025 — up 2.4x in six months — and is projected to reach ~$15B by the end of 2026 ([Menlo Ventures](https://menlovc.com/perspective/2025-mid-year-llm-market-update/)). The specialist layer serving open weights crossed into unicorn-factory territory in a single year: Together AI passed $1.15B in annual bookings and raised at $8.3B (July 2026), Fireworks processes 10T+ tokens a day and is in talks at a $15B valuation — nearly 4x its price seven months earlier — Baseten hit ~$600M ARR at up to $13B, and NVIDIA paid ~$20B just to license Groq's inference chips. But here's the catch that matters: this gold rush has no pricing power at the model layer. The weights are open, switching costs are an API string, and five of six providers serving DeepSeek V4 Pro converged on an identical $2.17/M within weeks of release. Fireworks — the category leader — runs ~50% gross margins ([Sacra](https://sacra.com/c/fireworks-ai/)), well below software norms, because GPU costs sit in COGS and prices are set by the most aggressive competitor. So every provider faces the same equation: billions in revenue at stake, prices pinned to the floor by perfect competition, and exactly one cost lever left that customers can't observe — the fidelity of the model itself. Quantize to FP4, cap the context window, relax the speculative decoder, and your margin improves immediately and measurably; the quality loss is diffuse, per-request invisible, and lands on someone else's eval. A market this large, this commoditized, and this unobserved is a textbook setup for quality shading — and the audits ([11 of 31 endpoints deviating from reference weights](https://arxiv.org/abs/2410.20247), [providers at 50.6% tool-call accuracy](https://github.com/MoonshotAI/K2-Vendor-Verifier)) confirm it's not hypothetical.
 
