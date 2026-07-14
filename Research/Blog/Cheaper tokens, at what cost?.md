@@ -14,91 +14,68 @@ So are we going to be left with lemons?
 
 Akerlof's paper predicts the degradation of such markets, but it also enumerates remedies: disclosure, reputation, certification, and technologies that make quality observable. All four now exist for model inference in embryonic form.
 
-This post covers why serving costs fell ~10x/year, which of the optimizations behind that decline are output-preserving and which are not, and whether the emerging verification layer can clear the market before it unravels. 
-
+This post covers why serving costs fell ~10x/year, which of the optimizations behind that decline are output-preserving and which are not, and whether the emerging verification layer is even needed.
 ## "LLMflation"
 ![[Screenshot 2026-07-14 at 12.11.41 PM.png|623]]
 
-A [MIT FutureTech estimate](https://arxiv.org/abs/2511.23455) found that, between April 2024 and November 2025, constant-quality inference plummeted at **~5-10x** per year, of which **~3x** is attributable to algorithmic efficiency. The findings also show that higher-performance models dropped almost 32x per year, with less performant models only around 1.7x per year. An a16z blog by Guide Appenzeller aptly dubbed this phenomenon ["LLMflation"](https://a16z.com/llmflation-llm-inference-cost/).
+A [MIT FutureTech estimate](https://arxiv.org/abs/2511.23455) found that, between April 2024 and November 2025, constant-quality inference plummeted at **~5-10x** per year, of which **~3x** is attributable to algorithmic efficiency. The findings also show that higher-performance models dropped almost 32x per year, with less performant models only around 1.7x per year. An a16z blog by Guide Appenzeller aptly dubbed this ["LLMflation"](https://a16z.com/llmflation-llm-inference-cost/).
 
-Interestingly, the study also found that the cost of running the frontier model is simultaneously rising 3-18x per year. So the industry is seeing increasing costs to push frontier capabilities, but decreasing costs to serve older capabilities behind that frontier. 
+Interestingly, the study also found that the cost of running a model with frontier capabilities is simultaneously rising 3-18x per year. So the industry is seeing increasing costs to push frontier capabilities, but decreasing costs to serve those behind that frontier. 
 
 Note that these estimates are respective to fixed capabilities, i.e., progress in a benchmark like GPQA-D, not any individual model. 
 
 ![[Screenshot 2026-07-14 at 1.03.46 PM.png]]
 
-On a per-model basis, we see predictable behavior expected from a competitive market. We found that 
+On a per-model basis, we see predictable behavior expected from a contestable hosting market, but nor a purely smooth decline. We reconstructed the cheapest listed OpenRouter output price for 94 open-weight and 78 closed-weight model varieties and benchmarked on a sample of 172 of 873 price changes from Sept. 2024 to July 2026. To make models with uneven pricing histories comparable, we converted the data into weekly snapshots using each model's latest observed price each Sunday.
 
-## Why is cost-to-serve plummeting?
+Our analysis found that open-weight models ended the week at a different output price in 10.9% of observed model-weeks, compared with 0.3% for closed models. The lowest currently available price for an open-weight model *increased* at a pooled annualized rate of 49%, while its lowest paid price observed to date *fell* by 42% per year (95% confidence interval: a 29%–53% decline). This apparent contradiction reflects a sawtooth hypothesis: cheap providers enter and establish new lows, then exit or raise prices, causing the current minimum to rebound. 
 
-The decline comes from many sources, 
+![[Pasted image 20260714155449.png]]
 
-many sources: algorithms, serving software, hardware economics, competition. These sources can also be grouped into who has the optimization choice.
+The data unfortunately doesn't reveal the reason behind these price drops, nor for the rebound. Finer data and more analysis, perhaps a collection of all providers of a model and their pricing at a given time, is likely needed to get a better estimate an answer in future work. What we can look at is what structural reasons enable a ~10x/yr fixed-capability cost decrease and ~42%/yr decrease in floor price within a model.
+## So why is cost-to-serve plummeting?
 
-**Model-creator choices** are baked into the model architecture and weights, often disclosed in the model card. The biggest is likely [distillation](https://arxiv.org/abs/1503.02531), which compresses capabilities into cheaper mini/flash tiers: [Gemini 3 Flash](https://artificialanalysis.ai/articles/gemini-3-flash-everything-you-need-to-know) launched at half the price of 3 Pro while giving up just 2 points on Artificial Analysis's Intelligence Index. The rest is architecture, and [DeepSeek-V3](https://arxiv.org/abs/2412.19437) illustrates it well. Its [MoE sparsity](https://arxiv.org/abs/1701.06538) means you only pay for active parameters, 37B of its 671B total. And its [MLA](https://arxiv.org/abs/2405.04434) compresses the KV cache, ~70 KB per token versus ~516 KB for Llama-3.1-405B ([Hardware Reflections](https://arxiv.org/abs/2505.09343)).
+The decline partly comes from optimizations across the entire AI stack. A non-exhaustive tour of the big categories:
 
-On the other hand, **provider choices** can be hard to detect for the buyer. 
+Models are increasingly designed to be cheap to run, so improvements are being baked into the **architecture**, and [DeepSeek-V3](https://arxiv.org/abs/2412.19437) illustrates that perfectly. Its [MoE sparsity](https://arxiv.org/abs/1701.06538) means you only pay for active parameters, 37B of its 671B total. And its [MLA](https://arxiv.org/abs/2405.04434) compresses the KV cache, ~70 KB per token versus ~516 KB for Llama-3.1-405B ([hardware reflections paper](https://arxiv.org/abs/2505.09343)), which is what made long context economical.
 
-Many are lossless: kernel optimizations like [FlashAttention](https://arxiv.org/abs/2205.14135), [continuous batching](https://www.anyscale.com/blog/continuous-batching-llm-inference), [PagedAttention](https://arxiv.org/abs/2309.06180), prefix caching, and speculative decoding. Each change how the weights are served without adjusting the output distribution and can have a dramatic effect: on [InferenceMAX](https://newsletter.semianalysis.com/p/inferencemax-open-source-inference), [NVIDIA reported](https://blogs.nvidia.com/blog/blackwell-inferencemax-benchmark-results/) B200 cost on gpt-oss-120b falling from $0.11 to $0.02 per million tokens in two months, purely from software updates. Indeed, there is also lossy techniques of various degrees, quantization and KV cache eviction among them. These push the frontier for speed and price, but at the cost of accuracy. We'll cover some of these in the next section. 
+**Distillation** allows frontier capabilities to get [compressed](https://arxiv.org/abs/1503.02531) into cheaper mini/flash tiers, likely the single biggest driver: [Gemini 3 Flash](https://artificialanalysis.ai/articles/gemini-3-flash-everything-you-need-to-know) launched at half the price of 3 Pro while giving up just 2 points on Artificial Analysis's Intelligence Index.
 
-**Hardware** supplies the rest, and while also at the discretion of the provider, it's coarser and unlikely to change the output distribution. H100 to B200 is roughly 4x decode throughput like-for-like, netting ~3x cheaper per million tokens. Another hardware story is in rental economics: H100s fell from ~$8/hr in 2023 to $1.20-3.50 today ([_How the GPU Bubble Burst_](https://www.latent.space/p/gpu-bubble)), so tokens per dollar per GPU-hour cratered even though chip prices never did.
+There is also optimizations tuned to **serving software**, most of it being lossless: think kernel optimizations like [FlashAttention](https://arxiv.org/abs/2205.14135), [continuous batching](https://www.anyscale.com/blog/continuous-batching-llm-inference), [PagedAttention](https://arxiv.org/abs/2309.06180), prefix caching, and speculative decoding. Each change how the weights are served without adjusting the output distribution. The effects can also be drastic: on [InferenceMAX](https://newsletter.semianalysis.com/p/inferencemax-open-source-inference), [NVIDIA reported](https://blogs.nvidia.com/blog/blackwell-inferencemax-benchmark-results/) B200 cost on gpt-oss-120b falling from $0.11 to $0.02 per million tokens in two months, purely from innovations in software. There are also lossy techniques, quantization and KV cache eviction among them, that push the price-speed frontier further at the cost of accuracy. We'll cover these in the following sections.
 
-And competition converts it all into price. Open weights commoditize the model layer, so any capability that ships openly triggers an instant price war: [five of six providers at an identical $2.17/M](https://deepinfra.com/blog/deepseek-v4-pro-max-api-benchmarks-latency-throughput-cost) for DeepSeek V4 Pro within weeks. Nor is this loss-leader pricing anymore: DeepSeek [disclosed](https://github.com/deepseek-ai/open-infra-index/blob/main/202502OpenSourceWeek/day_6_one_more_thing_deepseekV3R1_inference_system_overview.md) an 84.5% theoretical gross margin on R1, and [SemiAnalysis](https://newsletter.semianalysis.com/p/anthropic-growth-and-bedrock-mix) estimates Anthropic's inference margins reached the mid-60s by 2026.
+**Hardware** improvements and pricing can also have a big impact. H100 to B200 is roughly 4x decode throughput like-for-like, netting ~3x cheaper per million tokens. H100s fell from ~$8/hr in 2023 to $1.20-3.50 today ([_How the GPU Bubble Burst_](https://www.latent.space/p/gpu-bubble)).
 
-So the ~10x/yr decline is real and mostly honest. But it's produced by two kinds of optimization, and only one of them is observable. When price competition pins everyone to the same $2.17/M, the remaining margin lever lives entirely in the provider layer, the one the buyer can't see.
-
-## Silent Degredation
-
-The silent truth is that 
-
-no one knows what model you are serving, and you can silently degrade it to stay at the perado frontier
-
-Third-party inference is now a serious business growing at venture-fantasy rates. Enterprise LLM API spend hit $8.4B by mid-2025 — up 2.4x in six months — and is projected to reach ~$15B by the end of 2026 ([Menlo Ventures](https://menlovc.com/perspective/2025-mid-year-llm-market-update/)). The specialist layer serving open weights crossed into unicorn-factory territory in a single year: Together AI passed $1.15B in annual bookings and raised at $8.3B (July 2026), Fireworks processes 10T+ tokens a day and is in talks at a $15B valuation — nearly 4x its price seven months earlier — Baseten hit ~$600M ARR at up to $13B, and NVIDIA paid ~$20B just to license Groq's inference chips. But here's the catch that matters: this gold rush has no pricing power at the model layer. The weights are open, switching costs are an API string, and five of six providers serving DeepSeek V4 Pro converged on an identical $2.17/M within weeks of release. Fireworks — the category leader — runs ~50% gross margins ([Sacra](https://sacra.com/c/fireworks-ai/)), well below software norms, because GPU costs sit in COGS and prices are set by the most aggressive competitor. So every provider faces the same equation: billions in revenue at stake, prices pinned to the floor by perfect competition, and exactly one cost lever left that customers can't observe — the fidelity of the model itself. Quantize to FP4, cap the context window, relax the speculative decoder, and your margin improves immediately and measurably; the quality loss is diffuse, per-request invisible, and lands on someone else's eval. A market this large, this commoditized, and this unobserved is a textbook setup for quality shading — and the audits ([11 of 31 endpoints deviating from reference weights](https://arxiv.org/abs/2410.20247), [providers at 50.6% tool-call accuracy](https://github.com/MoonshotAI/K2-Vendor-Verifier)) confirm it's not hypothetical.
-
-
-
+Most of these improvements are what push the industry forward, but they can also be used by providers to deviate from the labeled model via silent degredation.
 ### Silent Quantization
-- Mechanism: serve INT4/FP4 weights while advertising the full model. Halves+ memory cost per replica.
-- Harm: degradation is uneven — INT4 causes a significant accuracy drop specifically for decoder-only models (Wu et al., ICML 2023, [arXiv:2301.12017](https://proceedings.mlr.press/v202/wu23k.html)), and practitioner consensus is to avoid INT4 for math, code, and reasoning-heavy tasks where loss is most noticeable. There's also a safety angle: Egashira et al., "Exploiting LLM Quantization" (NeurIPS 2024, arXiv:2405.18137) shows quantization can activate adversarial behavior absent in the full-precision model.
-- Evidence of practice: Gao et al. found 11 of 31 Llama endpoints statistically differed from Meta's reference weights, with only 2 of 9 providers disclosing any distribution-altering optimization ([arXiv:2410.20247](https://arxiv.org/abs/2410.20247), ICLR 2025).
 
-### Context Window Trunctation
+The most direct lever a provider has is precision. If you serve weights at INT4 or FP4 instead of BF16, each replica needs a quarter of the memory, which mean more replicas per node, larger batches, and a materially cheaper token.
 
-- Mechanism: cap or silently truncate context far below the advertised window. KV cache is the memory bottleneck, so this is a huge cost lever.
-- Harm: the model literally never sees part of your prompt; failures look like model stupidity, not infrastructure.
-- Evidence: DeepInfra serving DeepSeek V4 Pro at 66K vs 1M elsewhere at identical $2.17/M pricing ([their own benchmark page](https://deepinfra.com/blog/deepseek-v4-pro-max-api-benchmarks-latency-throughput-cost)), plus a [live HF forum dispute](https://discuss.huggingface.co/t/deepinfra-deepseek-v4-pro-context-size-wrong-on-huggingface/176578) where DeepInfra's site claimed 1024K while the endpoint capped at 64K.
+[Wu et al. (ICML 2023)](https://proceedings.mlr.press/v202/wu23k.html) found that INT4 causes a significant accuracy drop specifically for decoder-only models, and practitioner consensus is to keep INT4 away from math, code, and reasoning-heavy workloads, where the loss concentrates.
 
-**KV cache quantization & eviction**
+[Egashira et al. (NeurIPS 2024)](https://arxiv.org/abs/2405.18137) showed that quantization can activate adversarial behavior that is absent in the full-precision model, meaning a quantized endpoint can be behaviorally different. 
 
-- Mechanism: quantize the cache (W4A4KV4-style) or evict "unimportant" tokens mid-generation (H2O, arXiv:2306.14048; StreamingLLM, arXiv:2309.17453) to fit larger batches.
-- Harm: long-context recall degrades; the model "forgets" earlier conversation. Nearly impossible to attribute from outside.
-- ⚠️ These are published as legitimate techniques; evidence of _undisclosed provider use_ is thin — frame as "possible and invisible" rather than "documented in the wild."
+Has this been found in practice? In [Gao et al. (ICLR 2025)](https://arxiv.org/abs/2410.20247), the paper that found 11 of 31 commercial Llama endpoints statistically deviated from reference weights, and while the cause is unknown, quantization seems like the most obvious candidate (find evidence).
 
-**5. Lenient speculative decoding**
+Importantly, quantization is not inherently a scam. It is a perfectly disclosed legitimate practice. Open Router requires labels for (find evidence). Some models are being trained for it: DeepSeek V4 was QAT-trained largely at FP4, so an FP4 endpoint is far less of a downgrade than the label suggests. Additionally, OpenRouter's telemetry shows that some FP4 providrs outscore FP8 ones. 
+### Context Window Truncation
 
-- Mechanism: standard spec decoding is output-identical (target model verifies every draft token). Relax the acceptance rule ("typical acceptance," Medusa, arXiv:2401.10774) and you accept tokens the big model would reject — you're partially reading the draft model's output.
-- Harm: a tunable dial between "free speedup" and "quietly serving a smaller model," invisible per-response.
-- ⚠️ Same caveat as #3: published technique, no documented in-the-wild abuse case. Its undetectability is the point worth making.
+Another technique is to cap or silently truncate context far below the advertised window. A single 1M-token request on a model without aggressive compression can eat hundreds of gigabytes and is a huge bottleneck. A trim means that the model next sees part of the prompt and, unbeknownst to the buyer, it appears as context rot or hallucinations. 
 
-**. Model substitution / model mixing**
+In practice, the documented case is less silent truncation than pooled-price divergence. DeepInfra served DeepSeek V4 Pro at a 66K context window while Fireworks, Novita, SiliconFlow, and the official API offered the full 1M, all tied at the same $2.17/M blended price ([DeepInfra's own benchmark page](https://deepinfra.com/blog/deepseek-v4-pro-max-api-benchmarks-latency-throughput-cost)). To their credit, the cap was disclosed, if only in the fine print. Less flattering was a [Hugging Face forum dispute](https://discuss.huggingface.co/t/deepinfra-deepseek-v4-pro-context-size-wrong-on-huggingface/176578) where their listing claimed 1024K while the live endpoint rejected anything past 64K. Probably a metadata bug rather than deception, but that's the point: from the buyer's side, the two are indistinguishable. Same model name, same price, a 15x difference in what you actually get.
+### KV cache quantization & eviction
 
-- Mechanism: serve a distilled, older, or smaller model under the flagship's name; or mix models across requests to blur the statistical signature.
-- Harm: the maximal version of everything above.
-- Evidence: some provider deviations in the Stanford audit were larger than substituting a different model entirely; the rank-based uniformity test paper explicitly treats providers mixing multiple models as an evasion strategy ([arXiv:2506.06975](https://arxiv.org/pdf/2506.06975)).
+The cache doesn't have to be stored faithfully either. Providers can quantize it to 4 bits or evict "unimportant" tokens mid-generation ([H2O](https://arxiv.org/abs/2306.14048) keeps only heavy-hitter tokens, [StreamingLLM](https://arxiv.org/abs/2309.17453) a sliding window) to fit larger batches. The model saw your full prompt at prefill, then had its working memory pruned along the way, so recall degrades with depth and it looks like ordinary long-context mediocrity. One caveat: these are legitimate published techniques and there's no documented case of undisclosed provider use. But short-prompt statistical tests can't catch a cache policy that only bites at depth, so the honest framing is possible and invisible, not caught in the wild.
+### Lenient Speculative Decoding 
 
-**7. Undisclosed system prompts, fine-tuning, watermarking**
+Standard speculative decoding is output-identical: a small draft model proposes tokens and the target model verifies every one, so you get speed for free. But the acceptance rule is relaxable ("typical acceptance," [Medusa](https://arxiv.org/abs/2401.10774)), and once you accept tokens the big model would have rejected, you're partially reading the draft model's output. It's a continuous dial between free speedup and quietly serving a smaller model, invisible per-response. Same caveat as before: published technique, no documented abuse case. Its undetectability is the point.
+### Model Substitution & Mixing
 
-- Mechanism: prepend a hidden system prompt, fine-tune for bias, or watermark outputs — all change the output distribution without changing the advertised model name.
-- Evidence: this is the explicit threat model of TOPLOC — a provider could secretly reduce precision, fine-tune to introduce biases, or prepend an undisclosed system prompt ([arXiv:2501.16007](https://arxiv.org/pdf/2501.16007), ICML 2025) — and of Model Equality Testing (quantize/watermark/finetune, possibly without notifying users).
+The maximal version of everything above: serve a distilled, older, or smaller model under the flagship's name, or mix models across requests to blur the statistical signature. 
 
-**8. Incompetence (the biggest one in practice)**
+This isn't hypothetical distance — some provider deviations in the Stanford audit were larger than substituting a different model entirely, and the [rank-based uniformity test paper](https://arxiv.org/pdf/2506.06975) explicitly treats model mixing as an evasion strategy against exactly these audits. ## Undisclosed System Prompts, Fine-Tuning, Watermarking A provider can also change what the model does without touching how it's served: prepend a hidden system prompt, fine-tune for bias, or watermark outputs. All shift the output distribution while the model name stays the same. This is the explicit threat model of [TOPLOC](https://arxiv.org/pdf/2501.16007) and of Model Equality Testing.
+### Incompetence
 
-- Mechanism: not an attack — buggy tool-call parsers, wrong chat templates, bad sampler defaults, engine version drift.
-- Harm: empirically larger than quantization. Moonshot's K2VV measured Together at 72% and Nebius at 50.6% tool-call schema accuracy vs 100% official ([repo](https://github.com/MoonshotAI/K2-Vendor-Verifier), [announcement](https://medium.com/@kimi_moonshot/announcing-the-k2-vendor-verifier-ensuring-consistent-toolcall-performance-for-kimi-k2-04c568f4a1dd)); Chutes' postmortem attributed most failures to vLLM/sglang parsing bugs. OpenRouter's telemetry across billions of requests confirmed the variance ([provider variance blog](https://openrouter.ai/blog/announcements/provider-variance-introducing-exacto/)).
-- Structural point for the essay: converged pricing ($2.17/M across five providers) is _why_ this happens — when price differentiation is gone, corners get cut in the only dimension users can't observe.
-
-**Framing device for the section**: every entry shares one signature — savings are immediate and measurable to the provider; damage is diffuse, per-query invisible, and lands hardest on agentic workloads (tool calls, JSON, long context) rather than chat. That's the bridge to your fixes section: detection methods are ranked precisely by which of these they can catch (statistical tests catch #1 and #6; telemetry catches #8; only TEE attestation catches #4 and #5).
-
+The biggest one in practice isn't an attack at all: buggy tool-call parsers, wrong chat templates, bad sampler defaults, engine version drift. Empirically it outweighs quantization. Moonshot's [K2 Vendor Verifier](https://github.com/MoonshotAI/K2-Vendor-Verifier) measured Together at 72% and Nebius at 50.6% tool-call schema accuracy against the official API's 100%, Chutes' postmortem traced most failures to vLLM/sglang parsing bugs, and [OpenRouter's telemetry](https://openrouter.ai/blog/announcements/provider-variance-introducing-exacto/) across billions of requests confirmed the variance. The structural cause is the converged price: when five providers charge an identical $2.17/M, differentiation gets pushed into the one dimension buyers can't observe, and corners get cut there, deliberately or not.
 ## Attestation
 
 ### Router Governance
