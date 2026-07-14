@@ -1,6 +1,13 @@
-When a market has structural information asymmetry—the suppliers observe product quality that the buyers aren't privy to—buyers ask at the expected quality of the pool, the sellers of above-average goods exist, the pool degrades, and the equilibrium unravels toward only lemons trading. This was Akerlof's insight 
+> "Show me the incentive and I will show you the outcome." — *Charlie Munger*, 1995
 
-Third-party LLM inference satisfies both conditions almost exactly. Open weights collapsed the model layer into a commodity: within weeks of DeepSeek V4 Pro's release, five of six providers converged on an identical $2.17/M blended price. At a pooled price, the remaining competitive margin is serving cost, and the cheapest levers are the ones that alter the output distribution. Each cuts cost immediately and measurably; each degrades fidelity in ways that are per-request invisible and statistically diffuse.
+When a market has an information asymmetry — suppliers can observe product quality and buyers can't — buyers purchase at the expected quality of the pool. They don't know better. Sellers of above-average goods can't get paid for the difference, so they exit; the pool degrades, buyers rationally mark down further, and the equilibrium unravels toward only 'lemons' trading. The mechanism requires no bad actors, only an information asymmetry and a pooled price. This was George Akerlof's insight in his seminal 1970 paper "The Market for 'Lemons'" and the catalyst for the field of information economics.
+
+The current state of third-party LLM inference satisfies both conditions. Open weights collapse the model layer into a commodity: within weeks of DeepSeek V4 Pro's release, five of six providers converged on an identical $2.17/M blended price. 
+
+Competition among model providers serving supposedly "identical" weights is measured across two observable metrics: cost and speed. Artificial Analysis benchmarks every major endpoint on $/M tokens, throughput, and time-to-first-token, and providers advertise their positions on that frontier. Unfortunately, many of the methods that allow providers to push past that frontier involve degrading fidelity. Quality verification is complicated and left to the buyer, so almost no one does it. They just hope they got the accuracy 
+
+Benchmarking the models is costly and complicated, so token buyers are left just hoping they got frontier performance.
+
 
  
 
