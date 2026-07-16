@@ -1,5 +1,5 @@
 ## Hardware
-### Markets
+### Hardware Markets
 - [ ] Where can I rent GPUs? → [[GPU Rental Markets]]
 - [ ] At a technical level, how do you access a rental GPU? Can you write custom kernels without owning one? → [[GPU Rental Markets]]
 ### Chips
@@ -12,7 +12,11 @@
 - [x] Most of the inference efficiency improvements include accuracy loss, how do people know they are getting served the right model? → [[Inference Economics]]
 - [ ] What do inference libraries like vLLM do, really? → [[Serving Models]]
 - [ ] At a technical level, how do you serve a model? → [[Serving Models]]
+
+### Inference Markets
 - [ ] What actually drives the per-model price sawtooth? Needs a full record of each model's providers + prices over time, not just the minimum.
+- [ ] How big of a market is OpenRouter inference? HuggingFace?
+- [ ] Who are OpenRouter and HuggingFace users? Why would you use these models? 
 
 ### Verified Inference
 - [ ] How does TEE work, really?
