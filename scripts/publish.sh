@@ -19,8 +19,9 @@ collect_paths() {
     status="${entry:0:2}"
     path="${entry:3}"
     if [[ "$status" == R* || "$status" == C* ]]; then
-      IFS= read -r -d '' renamed_path || true
-      path="$renamed_path"
+      # -z emits the new path in the entry, then the original path as the
+      # next record; consume the original (it no longer exists to stage).
+      IFS= read -r -d '' _orig_path || true
     fi
     ignored_path "$path" && continue
     paths+=("$path")
