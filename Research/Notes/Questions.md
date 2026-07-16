@@ -19,7 +19,7 @@
 - [ ] How big of a market is verified inference? decentralized? Volume / Revenue
 	- [ ] Who are the participants? 
 - [ ] What is the space of tests you an run to verify a model? Attestations? What's actually detectable?
-	- [ ] How much are these centralized providers
+	- [ ] How degraded are these centralized provider's models? Are they selling lemons? 
 
 ## Agents / RL / Fine-Tuning
 - [ ] What's the difference between what Prime Intellect and Thinking Machines offers?
