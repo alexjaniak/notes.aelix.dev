@@ -15,8 +15,8 @@
 
 ### Inference Markets
 - [ ] What actually drives the per-model price sawtooth? Needs a full record of each model's providers + prices over time, not just the minimum.
-- [ ] How big of a market is OpenRouter inference? HuggingFace?
-- [ ] Who are OpenRouter and HuggingFace users? Why would you use these models? 
+- [x] How big of a market is OpenRouter inference? HuggingFace? → [[OpenRouter and Hugging Face]]
+- [x] Who are OpenRouter and HuggingFace users? Why would you use these models? → [[OpenRouter and Hugging Face]]
 
 ### Verified Inference
 - [ ] How does TEE work, really?
