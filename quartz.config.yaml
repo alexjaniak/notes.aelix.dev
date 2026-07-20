@@ -32,6 +32,7 @@ configuration:
     - AGENTS.md
     - CLAUDE.md
     - README.md
+    - private/Journal/**
     - scripts/**
   theme:
     fontOrigin: googleFonts

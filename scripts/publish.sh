@@ -8,6 +8,7 @@ message="${*:-notes: update vault}"
 
 ignored_path() {
   case "$1" in
+    private/*|Private/*|\
     .obsidian/*|public/*|.quartz/*|node_modules/*) return 0 ;;
   esac
   return 1
