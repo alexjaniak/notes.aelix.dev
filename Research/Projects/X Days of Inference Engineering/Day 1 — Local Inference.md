@@ -12,7 +12,7 @@ Every decode step reads the entire model once (plus the KV cache), so the ceilin
 
 Hardware: Apple M4, 24 GB unified memory, **120 GB/s** bandwidth (Apple spec). CPU and GPU (Metal) share the same bus, so the prediction holds either way.
 
-- Model file size (GB): ____
+- Model file size (GB): 
 - Predicted decode ceiling (tok/s): ____
 - Predicted prefill (should be much faster — compute-bound, parallel over the prompt): guess: ____
 - Prediction: decode tok/s at 8k context vs 0 context — how much slower and why (KV cache adds bytes per token): ____

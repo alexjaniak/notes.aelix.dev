@@ -115,19 +115,19 @@ A serving skill, not a research agenda: providers quantize, engines ship fp8 pat
 
 One serving-systems paper at a time, in roughly this order, each read the day before (or after) the hands-on unit it pairs with. Rule: every paper day reproduces or sanity-checks one claim.
 
-| Paper | Pairs with |
-|---|---|
-| Orca: iteration-level scheduling (OSDI '22) | 2.5/2.6 continuous batching |
-| vLLM / PagedAttention (SOSP '23, arXiv 2309.06180) | 4.1/4.2 |
-| SGLang / RadixAttention (arXiv 2312.07104) | 4.3 |
-| Sarathi-Serve: chunked prefill (OSDI '24) | 4.4 |
-| Speculative decoding (Leviathan et al., arXiv 2211.17192) + EAGLE | 2.7/4.5 |
-| FlashAttention 1→3 | 3.8/3.9 |
-| DistServe (OSDI '24) + Splitwise (ISCA '24) | 4.7 |
-| Mooncake (FAST '25 best paper) | 4.7/6.4 |
-| ServerlessLLM (OSDI '24) | 4.9 |
-| DeepSeek-V3 hardware reflections (arXiv 2505.09343) | 4.8/6.x |
-| Survey: "Towards Efficient Generative LLM Serving" (arXiv 2312.15234) or "LLM Inference Serving: Recent Advances" (arXiv 2407.12391) | anytime — the map |
+| Paper                                                                                                                                | Pairs with                  |
+| ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
+| Orca: iteration-level scheduling (OSDI '22)                                                                                          | 2.5/2.6 continuous batching |
+| vLLM / PagedAttention (SOSP '23, arXiv 2309.06180)                                                                                   | 4.1/4.2                     |
+| SGLang / RadixAttention (arXiv 2312.07104)                                                                                           | 4.3                         |
+| Sarathi-Serve: chunked prefill (OSDI '24)                                                                                            | 4.4                         |
+| Speculative decoding (Leviathan et al., arXiv 2211.17192) + EAGLE                                                                    | 2.7/4.5                     |
+| FlashAttention 1→3                                                                                                                   | 3.8/3.9                     |
+| DistServe (OSDI '24) + Splitwise (ISCA '24)                                                                                          | 4.7                         |
+| Mooncake (FAST '25 best paper)                                                                                                       | 4.7/6.4                     |
+| ServerlessLLM (OSDI '24)                                                                                                             | 4.9                         |
+| DeepSeek-V3 hardware reflections (arXiv 2505.09343)                                                                                  | 4.8/6.x                     |
+| Survey: "Towards Efficient Generative LLM Serving" (arXiv 2312.15234) or "LLM Inference Serving: Recent Advances" (arXiv 2407.12391) | anytime — the map           |
 
 ## Current project slot
 
