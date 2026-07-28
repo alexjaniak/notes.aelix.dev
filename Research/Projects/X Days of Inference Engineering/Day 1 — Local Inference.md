@@ -17,9 +17,9 @@ Hardware: Apple M4, 24 GB unified memory, **120 GB/s** bandwidth (Apple spec). C
 	- Q4_K_M is ~4.2 bits/weight. 
 	- So 8.2B × 0.6 Bytes = ~5GB. 
 - Predicted decode ceiling (tok/s): 120 GB/s ÷ 5GB = 24 Tok/s
-- Predicted prefill (should be much faster — compute-bound, parallel over the prompt): guess: 10-20x faster than decode, so 
-	- 
-- Prediction: decode tok/s at 8k context vs 0 context — how much slower and why (KV cache adds bytes per token): 
+- Predicted prefill (should be much faster — compute-bound, parallel over the prompt): guess: 10-20x faster than decode, so lets just grab an average
+	- 360 tok/s
+- Prediction: decode tok/s at 8k context vs 0 context — how much slower and why (KV cache adds bytes per token): ==---
 
 ## Steps
 
@@ -32,12 +32,12 @@ Hardware: Apple M4, 24 GB unified memory, **120 GB/s** bandwidth (Apple spec). C
 
 ## Measurements
 
-| Run | Prefill tok/s | Decode tok/s | Notes |
-|---|---|---|---|
-| baseline (p512/n128) | | | |
-| d=2048 | | | |
-| d=4096 | | | |
-| d=8192 | | | |
+| Run                  | Prefill tok/s | Decode tok/s | Notes |
+| -------------------- | ------------- | ------------ | ----- |
+| baseline (p512/n128) | 228.94 ± 0.10 | 20.80 ± 0.05 |       |
+| d=2048               |               |              |       |
+| d=4096               |               |              |       |
+| d=8192               |               |              |       |
 
 Efficiency: measured decode ÷ predicted ceiling = ____ % of the theoretical bus limit.
 
