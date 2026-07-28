@@ -12,10 +12,14 @@ Every decode step reads the entire model once (plus the KV cache), so the ceilin
 
 Hardware: Apple M4, 24 GB unified memory, **120 GB/s** bandwidth (Apple spec). CPU and GPU (Metal) share the same bus, so the prediction holds either way.
 
-- Model file size (GB): 
-- Predicted decode ceiling (tok/s): ____
-- Predicted prefill (should be much faster — compute-bound, parallel over the prompt): guess: ____
-- Prediction: decode tok/s at 8k context vs 0 context — how much slower and why (KV cache adds bytes per token): ____
+- Model file size (GB): 5GB. 
+	- Qwen 8B has around ~8.2B Parameters. 
+	- Q4_K_M is ~4.2 bits/weight. 
+	- So 8.2B × 0.6 Bytes = ~5GB. 
+- Predicted decode ceiling (tok/s): 120 GB/s ÷ 5GB = 24 Tok/s
+- Predicted prefill (should be much faster — compute-bound, parallel over the prompt): guess: 10-20x faster than decode, so 
+	- 
+- Prediction: decode tok/s at 8k context vs 0 context — how much slower and why (KV cache adds bytes per token): 
 
 ## Steps
 
