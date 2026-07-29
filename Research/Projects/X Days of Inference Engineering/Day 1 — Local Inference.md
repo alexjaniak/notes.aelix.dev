@@ -1,6 +1,4 @@
-# Day 1 — Local Inference
-
-*Planned for Friday 2026-07-24. Unit 1.1 from [[Curriculum]].*
+Unit 1.1 from [[Curriculum]].*
 
 **The question:** decode is supposedly memory-bandwidth-bound ([[Inference]], [[Transformer Inference Basics]]). Can my laptop's memory bus predict its token rate before I run anything?
 
@@ -10,7 +8,7 @@ Every decode step reads the entire model once (plus the KV cache), so the ceilin
 
 > predicted decode tok/s ≈ memory bandwidth ÷ bytes read per token ≈ bandwidth ÷ model file size (at short context)
 
-Hardware: Apple M4, 24 GB unified memory, **120 GB/s** bandwidth (Apple spec). CPU and GPU (Metal) share the same bus, so the prediction holds either way.
+Hardware: Apple M4, 24 GB unified memory, **120 GB/** bandwidth (Apple spec). CPU and GPU (Metal) share the same bus, so the prediction holds either way.
 
 - Model file size (GB): 5GB. 
 	- Qwen 8B has around ~8.2B Parameters. 
@@ -19,7 +17,7 @@ Hardware: Apple M4, 24 GB unified memory, **120 GB/s** bandwidth (Apple spec). C
 - Predicted decode ceiling (tok/s): 120 GB/s ÷ 5GB = 24 Tok/s
 - Predicted prefill (should be much faster — compute-bound, parallel over the prompt): guess: 10-20x faster than decode, so lets just grab an average
 	- 360 tok/s
-- Prediction: decode tok/s at 8k context vs 0 context — how much slower and why (KV cache adds bytes per token): ==---
+- Prediction: decode tok/s at 8k context vs 0 context — how much slower and why (KV cache adds bytes per token): KV = 2 × 36 layers × 8 KV heads × 128 dim × 2 bytes (fp16) = **144 KB/token** → +1.18 GB at 8k → bytes go 5.03 → 6.24 GB → predict **~81% of baseline** (~16 tok/s)
 
 ## Steps
 
@@ -34,12 +32,14 @@ Hardware: Apple M4, 24 GB unified memory, **120 GB/s** bandwidth (Apple spec). C
 
 | Run                  | Prefill tok/s | Decode tok/s | Notes |
 | -------------------- | ------------- | ------------ | ----- |
-| baseline (p512/n128) | 228.94 ± 0.10 | 20.80 ± 0.05 |       |
-| d=2048               |               |              |       |
-| d=4096               |               |              |       |
-| d=8192               |               |              |       |
+| baseline (p512/n128) | 228.94 ± 0.10 | 20.80 ± 0.05 | quiet machine; ceiling 23.9 → **87%** |
+| d=2048               | 195.62 ± 0.65 | 19.20 ± 0.28 | sweep-run baseline was 19.82 ± 0.38 (background load) |
+| d=4096               | 179.63 ± 0.72 | 17.99 ± 0.26 | predicted (re-anchored) 17.7 → 1.6% err |
+| d=8192               | 154.57 ± 0.84 | 15.97 ± 0.06 | predicted 16.05 → **0.5% err**; 80.6% of baseline vs 81% predicted |
+| Q8_0 (p512/n128)     | 226.70 ± 7.47 | 12.52 ± 0.08 | 8.71 GB file; ÷1.66 vs file-ratio 1.73; **91%** of its 13.8 ceiling |
+| CPU only (-ngl 0)    | 22.15 ± 1.74  | 12.69 ± 1.36 | prefill ÷10 (compute gone); decode ÷1.6 → CPU pulls only ~64 GB/s of the bus |
 
-Efficiency: measured decode ÷ predicted ceiling = ____ % of the theoretical bus limit.
+Efficiency: measured decode ÷ predicted ceiling = 20.80 ÷ 23.9 = **87%** of the theoretical bus limit. (Prefill: 228.94 ÷ ~270 compute ceiling = 85% — same story, other roofline.) Full narrative + caveats: [[Day 1 — Writeup]].
 
 ## If time remains
 
