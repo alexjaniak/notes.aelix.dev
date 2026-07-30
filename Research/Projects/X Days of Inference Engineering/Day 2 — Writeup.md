@@ -63,33 +63,27 @@ The waterfall (chart above, left panel): pip install (186.6s) → weight downloa
 
 Every one of these stages is something production serving infra spends real engineering effort eliminating: baked container images skip the pip install, pre-staged weights on fast storage (or literal memory snapshotting) skip the download, warm pools skip engine init entirely. Today's cold start is the bill that always-on or aggressively-optimized serverless infra pays to make invisible.
 
-## X post — final draft
+## X post — final draft (Alex's draft, agent-filled gaps, single long post)
 
-> Day 2/45 of Inference Engineering: Rent a GPU, Serve an Endpoint
+> Day 2/45 of Inference Engineering: Renting a GPU & Serving an Endpoint 🖥️
 >
-> Day 1 was the physics (spec sheet → predicted decode speed, 87% of ceiling). Day 2 was the plumbing — and the plumbing is where the time actually goes.
+> Today, I rented a A100 [80GB, PCIe] (@PrimeIntellect, $1.20/hr), and used vLLM to serve Qwen3-8B at bf16.
 >
-> Rented an A100 80GB (Prime Intellect, $1.20/hr), served Qwen3-8B bf16 with vLLM, and predicted every stage of the cold start before running it — same rule as Day 1.
+> I've previously found cloud compute annoying to boot up (looking at you AWS console), so this was surprisingly simple and access was through SSH.
 >
-> The physics still held: 1,935 GB/s ÷ 16.38 GB of weights = 118.12 tok/s predicted ceiling. Measured 75.0 — 63.5% of it (with an asterisk below).
+> Very quickly, however, I ran into the so-called cold-start problem. Since I was on a fresh Ubuntu image, I needed to install vLLM (~189s), download the weights from Hugging Face (~47s), and then initialize the engine (~51.3s) — which breaks into loading 16.4GB of weights off disk into VRAM (fast, not the bottleneck), and CUDA graph capture, where vLLM runs warmup passes and pre-records the entire kernel launch sequence so it doesn't pay per-kernel launch overhead on every single token later.
 >
-> The plumbing did not go how I predicted, in four completely different ways:
+> If you're serving inference at scale, that's precious compute time wasted booting rather than serving customers, so there's a whole industry of optimizations: baking a container image with everything pre-installed, pre-staging weights on fast storage instead of pulling from HF cold, keeping a pool of already-initialized workers around, or — most aggressively — snapshotting a fully-loaded process's memory and restoring it in seconds instead of rerunning the whole boot sequence.
 >
-> • pip install vllm: guessed 50s, took 186.6s — a CUDA/PyTorch dependency tree is heavier than "a pip install" sounds.
+> Same physics as yesterday: memory bandwidth ÷ model size predicts decode speed. This A100's 1,935 GB/s ÷ 16.4GB of weights gives a ceiling of ~118 tok/s. Measured: 75 tok/s — 63.5% of ceiling, actually less efficient than my Mac hit yesterday (87%). Part of why: this box's driver didn't ship the CUDA compiler vLLM needed to build its fastest sampling kernel, so it fell back to a slower one — a real, measurable throughput hit from one missing piece of software. Raw hardware sets the ceiling; the software stack on top decides how close you actually get to it.
 >
-> • HF weight download: guessed 640s from a speedtest, took 47.0s — 13.6x faster than predicted, because I tested bandwidth to a random server instead of Hugging Face's actual (parallel, chunked) CDN path. Wrong proxy entirely.
+> Speaking of surprises 👀 — nvidia-smi showed this 16GB model using ~75GB of the card's 80GB VRAM. Only ~15GB of that is actual weights; the rest is vLLM's KV cache pool, pre-allocated upfront by default (it grabs ~90% of free VRAM whether you need it yet or not, so future requests can be served without stalling on memory allocation). Not a leak — just aggressive reservation for serving many requests at once.
 >
-> • Engine init (CUDA graph capture): guessed 20s, took 51.3s — this one isn't physics, it's software overhead, and there's no datasheet for that.
->
-> • TTFT: guessed 140ms, measured 95ms — right about the cause (almost all network, prefill+decode are single-digit ms), wrong about the magnitude.
->
-> The asterisk on 63.5%: this box had no CUDA compiler, so vLLM's fastest sampling kernel couldn't compile and fell back to a slower path. Spent a while trying to fix it properly (installed the toolkit, fought a PATH conflict, hit a third wall) before calling it — an honest infra gap, not a hidden mistake.
->
-> What surprised me: the A100 is *less* efficient than my Mac at batch 1 (63.5% vs 87%), which is the opposite of "bigger GPU wins." Datacenter chips have a way more lopsided compute-to-bandwidth ratio than the M4 (161x prefill/decode gap vs 11x) — which means batch-1 decode wastes even more of a datacenter GPU than it wastes a laptop chip. They're built assuming you'll batch requests together.
+> vLLM comes with an OpenAI compatible REST schema, and had some other dials. To test TTFT (Time-to-First-Token) I streamed a short completion through an SSH tunnel from my laptop to the pod (this box was SSH-only, no exposed HTTP port) and measured 95ms ⚡, almost entirely from the network latency!
 >
 > Tomorrow: concurrency — watching continuous batching multiply throughput without multiplying hardware.
 >
-> [attach: xdoi-day2-coldstart-decode.png]
+> [attach: xdoi-day2-coldstart-decode.png, nvidia-smi screenshot]
 
 ## What surprised me — candidates
 
