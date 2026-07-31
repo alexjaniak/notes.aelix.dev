@@ -37,10 +37,11 @@ Inputs, all public or from Day 2: A100 80GB PCIe **1,935 GB/s** HBM, **312 TFLOP
 - Now add KV: each request also streams its own cache every step — kv_bytes(B, ctx) = B × ctx × 147 KB. At 1k context, per-step traffic = 16.38 GB + B × 0.147 GB. Intensity(B) = 2PB ÷ (2P·2bytes + B·ctx·147KB)... solve for where it crosses 161, or note that it asymptotes below the ridge and the "knee" is really a flattening: revised B* ≈ ___
 - Sanity: what does vLLM's default `max_num_seqs` cap the running batch at, and does it bind before B*? ___
 
-**2. Three points on the predicted throughput curve.** Memory-bound step time ≈ (16.38 GB + B × ctx × 147 KB) ÷ 1,935 GB/s; aggregate tok/s ≈ B ÷ step_time. At 1k context:
-- B=1: ___ tok/s (should reproduce the 118 ceiling)
-- B=16: ___ tok/s
-- B=64: ___ tok/s, and per-request tok/s = aggregate ÷ 64 = ___ (the graceful-degradation number: how much does each user feel 63 neighbors?)
+**2. Three points on the predicted throughput curve.** Re-anchored 2026-07-31: the box is A100-**SXM4** (2,039 GB/s), not PCIe. Closed form (1k ctx): **f(B) = 2,039·B ÷ (16.38 + 0.147·B)** aggregate tok/s — a saturation curve with half-max at B = 16.38/0.147 ≈ **111** (same fact as the 112 FLOPs/byte intensity asymptote) and asymptote 2,039/0.147 ≈ **13,870 tok/s**, below the ~19,000 compute roof → no knee at 1k ctx, only flattening. In ink:
+- B=1: **123.4** tok/s (reproduces the 124.5 ceiling minus its own KV)
+- B=16: **1,742** tok/s
+- B=64: **5,060** tok/s aggregate, per-request = **79.1** (the graceful-degradation number: 63 neighbors cost each user ~36% of solo speed)
+- B=128: **7,415** aggregate / 57.9 per user (past half-saturation, the flattening should be visible)
 
 **3. KV block accounting, predicted from memory.** vLLM takes `gpu_memory_utilization` (default 0.9) of 80 GB → ~72 GB budget; subtract 16.38 GB weights and ~a few GB activation/workspace → predicted KV pool ≈ ___ GB → ÷ 147 KB/token → ___ max cached tokens → ÷ block_size 16 → predicted `num_gpu_blocks` ≈ ___. The startup log prints the real number; target within ±10%.
 - Corollary: max concurrent 1k-token-context requests before preemption ≈ cached tokens ÷ ~2k (1k prompt + 1k gen) = ___
@@ -62,21 +63,27 @@ Inputs, all public or from Day 2: A100 80GB PCIe **1,935 GB/s** HBM, **312 TFLOP
 
 ## Measurements
 
+Run 2026-07-31 (Day 4 session), A100-SXM4-80GB, vLLM 0.26.0, fused sampler active, `vllm bench serve` closed-loop, 1k in / 1k out, `ignore_eos`, temp 0.8 / top_p 0.95 / top_k 20, num_prompts = 10×C. Raw JSONs: `sweep_c{1..128}.json`.
+
 | Concurrency | Agg tok/s | Per-req tok/s | TTFT p50/p99 (ms) | TPOT p50/p99 (ms) | Running/waiting | KV cache % | Little's law ✓? |
 |---|---|---|---|---|---|---|---|
-| 1 | | | | | | | |
-| 2 | | | | | | | |
-| 4 | | | | | | | |
-| 8 | | | | | | | |
-| 16 | | | | | | | |
-| 32 | | | | | | | |
-| 64 | | | | | | | |
-| 128 | | | | | | | |
+| 1 | 88.8 | 88.8 | 23*/26 | 11.25/11.27 | not captured | — | ✓ 1.00 |
+| 2 | 175.2 | 87.6 | 59/138 | 11.34/11.41 | — | — | ✓ 2.00 |
+| 4 | 339.7 | 84.9 | 69/201 | 11.67/11.81 | — | — | ✓ 3.99 |
+| 8 | 639.5 | 79.9 | 75/263 | 12.40/12.66 | — | — | ✓ 7.97 |
+| 16 | 1,139.6 | 71.2 | 93/546 | 13.78/14.40 | — | — | ✓ 16.0 |
+| 32 | 1,763.3 | 55.1 | 140/1,018 | 17.68/18.91 | — | — | ✓ 32.0 |
+| 64 | 2,504.6 | 39.1 | 519/3,730 | 25.09/25.44 | — | — | ✓ 64.0 |
+| 128 | 3,088.2 | 24.1 | 678/8,302 | 41.00/41.30 | — | — | ✓ 127.9 |
 
-- Predicted knee: ___ · Measured knee: ___ · % error: ___
+\* c=1 TTFT (23 ms) is **below the 53 ms compute floor** for a 1k-token prefill → prefix-cache hit: bench random dataset reuses a fixed seed, so every point's prompt set is a superset of the previous point's. Post-hoc log audit (hit-rate column): C=2–32 ran at **50–66% cache hits** (mid-curve throughput flattered, true gaps wider), C=64 drained 45→16% (evictions), **C=128 clean at 0.2–0.5%** — its TPOT 41.0 vs 21.9 modeled = 1.9× is the uncontaminated anchor. p99 ITL at 64/128 (148/196 ms vs ~25/41 median): decode stalling while **whole** 1k prefills pack into mixed steps (nothing chunks — 1k < the 8k budget; 148–196 ms ≈ 1–2k prefill tokens/step at realistic MFU) — Sarathi's problem, observed directly. Next sweep: per-point `--seed` or disable prefix caching.
+
+- Predicted knee: none at 1k ctx (flattening only, half-sat B≈111) · Measured: consistent — no plateau through C=128, agg still rising (3,088 at 128, per-req down to 24.1). **But absolute levels miss big: measured is 65% of model at C=16, 59% at C=64, 53% at C=128.** Cause, decomposed at C=64: measured step 24.9 ms vs modeled 15.0 ms — the model is decode-only, but half the workload's tokens are prefill, costing ~4–7 ms/step amortized, plus ~3 ms/step engine overhead that doesn't amortize away. (Note: "total tok/s = 2× output" is true by construction, not evidence — the evidence is the TPOT gap at the cache-clean C=128 point, 41.0 vs 21.9 = 1.9×, and the log windows where prefill floods crash gen throughput 4,400→700.) **The decode roofline that hit batch-1 within 6% misses batch-64+ by ~1.9× (cache-clean lower bound): serving ≠ decode.**
+- TTFT knee (p99 > 2×p50): predicted C≈4 via synchronized-wave collision arithmetic ((C−1)×53 ms vs 2×78 ms) · measured **C=2** (138 vs 117 ms). Mechanism confirmed (no resource exhausted — KV never bound, no preemptions); threshold early partly because prefix-cache hits depressed p50. Closed-loop + fixed lengths + fixed seed ⇒ p99 TTFT here measures burst behavior, not capacity — open-loop rerun is the control.
 - Predicted `num_gpu_blocks`: 22,959 (= 367,346 tokens; used 0.9×80 decimal GB + 3 GB activation guess) · Log says: 410,240 tokens (= 25,640 blocks, 56.34 GiB pool) — **10.5% under**, decomposed: GiB-vs-GB slip (card is 80 GiB = 85.9 GB) + activation reserve 7× too generous (vLLM profiles it empirically: ~0.4 GB actual). Cross-check: 56.34 GiB ÷ 410,240 = 147,456 B/token, the config.json derivation exactly ✓
 - Clean batch-1 (2026-07-31, Day 4 session): **88.4 tok/s** (4,000 tok ÷ 45.25 s client-side, `ignore_eos`, top_p/top_k set so the fused path actually runs) = **71.0% of 124.5** — ceiling re-anchored: this box is A100-**SXM4** (2,039 GB/s), not PCIe, so Day 2's 118.12 doesn't apply. Predicted 75% → 5.7% over. Day 2 got 63.5% with the crippled sampler; bandwidth-adjusted fused-sampler gain ≈ +12% (asterisk: Day 2's 75.0 used the diluted window-log instrument). Remaining 29% gap = ~3.3 ms/step vLLM overhead vs 8.03 ms ideal — does it amortize at high batch? That's the sweep's question
-- Goodput (TTFT<500ms, TPOT<50ms): ___ tok/s vs raw max ___ tok/s
+- Goodput (TTFT<500ms, TPOT<50ms): depends which percentile carries the SLO — **p99: C=8 → 640 tok/s** (C=16 misses, p99 TTFT 546); **p50: C=32 → 1,763 tok/s** (C=64 misses, p50 TTFT 519). Raw max: 3,088 at C=128. **Gap: 1.75–4.8× — that gap is the marketing** (DistServe framing). TPOT SLO never binds (max p99 41.3 ms); TTFT is the constraint everywhere.
+- Post-draft prediction scored: draft promised "64 users → ~4,800 agg, ~75 each" · measured **2,505 agg, 39.1 each** — the featured miss for the writeup.
 
 ## If time remains
 
