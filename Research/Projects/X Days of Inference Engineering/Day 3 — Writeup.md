@@ -14,6 +14,6 @@ Unfortunately, we can't coalesce tensors of different shapes. We also can't batc
 
 You could pad and mask, but then you pay non-insignificant FLOPs. If you batch a 1000-token pre-fill with a 10-token pre-fill, then you do 1000 x 2 work instead of 1010. 
 
-In addition, the attention op requires you to look back at the prefixed sequence, so 
+In addition, the attention op requires you to look back at the prefixed sequence, 
 
 

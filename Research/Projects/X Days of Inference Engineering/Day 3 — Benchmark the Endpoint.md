@@ -81,6 +81,37 @@ Inputs, all public or from Day 2: A100 80GB PCIe **1,935 GB/s** HBM, **312 TFLOP
 - **Chunked prefill dial:** toggle/tune `max_num_batched_tokens`, re-check p99 TTFT at high concurrency — the Sarathi-Serve idea, felt before reading the paper (Arc 4.4)
 - **Open vs closed loop:** rerun one mid-level point in request-rate mode; same nominal load, different queue behavior — which one resembles production traffic?
 
+## Post draft (concept-only — sweep deferred to Day 4)
+
+*Day 3 pivoted: short on time, so the post covers the continuous-batching mechanism + roofline predictions only. The sweep below, the five predictions' scoring, and the Day 2 debts all roll forward to Day 4. Mechanism reading (Orca §1–3, selective batching) done — notes in the chat/AI-conversation log.*
+
+Chart: ![[xdoi-day3-a100-roofline.png]]
+
+> Day 3/45 of Inference Engineering: Continuous Batching
+>
+> On Day 2 my rented A100 decoded 75 tok/s for a single user.
+>
+> Every token reads all ~16 GB of weights to do ~16 GFLOPs. That's an arithmetic intensity of ~1 FLOP/byte on a chip whose ridge is 161 FLOPs/byte (the intensity at which the chip switches from memory to compute-bound). So we are underutilizing our precious compute by 161x 😡!
+>
+> The obvious fix is to batch requests together. But naive (static) batching means that:
+> (1) if one request finishes before the others, it can't return early
+> (2) a new request can't join mid-flight
+>
+> Continuous batching (Orca, OSDI '22) shrinks the schedulable unit from a request to a forward-pass. This circumvents (1) & (2) and lets you add/remove requests at-will.
+>
+> Today, this is what vLLM and basically every serving engine does.
+>
+> I had a busy day so I'll benchmark tomorrow — prediction in ink first: the roofline says 64 users → ~4,800 tok/s aggregate, ~75 tok/s each. That's every one of 64 users getting what my single user measured. (Ceiling math — Day 2 only hit 63.5% of ceiling at batch 1, so the real curve lands under it.)
+>
+> 🤓 notes for the technical crowd:
+>
+> – A decode step of batch B reads the weights once but does B× the FLOPs, so arithmetic intensity ≈ B. Batching utilizes the chip more!
+> – Unfortunately, attention can't batch across requests. Each query attends to its own KV cache, and cache lengths differ by construction because requests can join at different times. Normally this wouldn't work. Orca's "selective batching" flattens every token from every request into one [Σ tokens, hidden] tensor, then splits/merges them for the attention operation. Pretty neat.
+> – FYI vLLM later replaced the attention piece with PagedAttention.
+> – BUT, this means every request now drags its KV cache (147 KB/tok on Qwen3-8B) through memory every pass. At 1k context, intensity asymptotes at ~112 FLOPs/byte — below the ridge, so the card stays memory-bound at every batch size.
+
+Prediction-2 math filled in while drafting (1k ctx, memory-bound model): B=1 → 117 tok/s · B=16 → 1,653 · B=64 → 4,802 agg / 75.0 per user · B=256 → 9,171 agg / 35.8 per user. KV-corrected intensity asymptote = 16.4 GFLOPs ÷ 0.147 GB ≈ 112 FLOPs/byte < 161 ridge → no knee at 1k ctx, only a flattening.
+
 ## Post skeleton
 
 - Hook: "One GPU serves 1 user at 118 tok/s — or 64 users at ___ tok/s *each*. The chip's spec sheet predicted the crossover before I ran anything."
