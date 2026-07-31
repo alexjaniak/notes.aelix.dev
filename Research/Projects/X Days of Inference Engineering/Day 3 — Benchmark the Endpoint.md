@@ -19,7 +19,11 @@ Arc 2.5/2.6 (padding-waste measurement, Rust batching simulator) build this from
 
 ## Debts from Day 2 (do first)
 
-- [ ] Check what Prime Intellect actually offers for volume/image persistence; write the resurrection steps at the top of this note once known
+- [x] Check what Prime Intellect actually offers for volume/image persistence — researched 2026-07-31:
+	- **No pause/stop-resume.** Pod lifecycle is create → delete, nothing in between. The only "warm" option is leaving the pod running ($1.20/hr).
+	- **Persistent network disks** exist (Storage tab → Create Disk): survive pod termination, attach at pod provisioning ("Add Shared Filesystem" button), billed continuously whether attached or not (~$0.00015/GB/hr class pricing → 100 GB ≈ $0.36/day). **Catch: disk is locked to one provider + datacenter** (docs mention Hyperstack, RunPod), so it anchors future rentals to wherever it lives — bad fit with on-demand availability roulette (Day 2: planned 4090, got A100).
+	- **Custom VM images** exist but are API-only (build a VM image from a linux/amd64 container image, needs "VM sandboxes" enabled; undocumented size limits/pricing) — too much machinery for this project.
+	- **Verdict for Day 4+:** skip persistence. Day 2's measured cold start was ~285 s and the big items (pip 187 s, HF download 47 s) aren't worth a datacenter anchor to save. Instead, at pod creation check whether an image with CUDA toolkit preinstalled is offered (fixes the fused-sampler debt at the source); fallback is the Day 2 apt toolchain fix with `TMPDIR` pointed somewhere exec-able before running `nvcc`.
 - [ ] Get a box/image with a working CUDA toolkit so FlashInfer's fused sampler JITs (`nvcc --version` before anything else; grep the vLLM startup log to confirm the fused path). This removes Day 2's 63.5%-of-ceiling asterisk
 - [ ] Re-measure clean batch-1 decode: predict ___ tok/s (Day 1 hit 87% of ceiling on the Mac; ceiling here is 118.12)
 - [ ] `nvidia-smi` before and after `vllm serve` — capture the "80 GB looks full at idle" moment. That's KV pre-allocation, not weights; the block math below says exactly how much
@@ -70,8 +74,8 @@ Inputs, all public or from Day 2: A100 80GB PCIe **1,935 GB/s** HBM, **312 TFLOP
 | 128 | | | | | | | |
 
 - Predicted knee: ___ · Measured knee: ___ · % error: ___
-- Predicted `num_gpu_blocks`: ___ · Log says: ___
-- Clean batch-1: ___ tok/s = ___% of 118.12 ceiling (Day 2 got 63.5% with the crippled sampler)
+- Predicted `num_gpu_blocks`: 22,959 (= 367,346 tokens; used 0.9×80 decimal GB + 3 GB activation guess) · Log says: 410,240 tokens (= 25,640 blocks, 56.34 GiB pool) — **10.5% under**, decomposed: GiB-vs-GB slip (card is 80 GiB = 85.9 GB) + activation reserve 7× too generous (vLLM profiles it empirically: ~0.4 GB actual). Cross-check: 56.34 GiB ÷ 410,240 = 147,456 B/token, the config.json derivation exactly ✓
+- Clean batch-1 (2026-07-31, Day 4 session): **88.4 tok/s** (4,000 tok ÷ 45.25 s client-side, `ignore_eos`, top_p/top_k set so the fused path actually runs) = **71.0% of 124.5** — ceiling re-anchored: this box is A100-**SXM4** (2,039 GB/s), not PCIe, so Day 2's 118.12 doesn't apply. Predicted 75% → 5.7% over. Day 2 got 63.5% with the crippled sampler; bandwidth-adjusted fused-sampler gain ≈ +12% (asterisk: Day 2's 75.0 used the diluted window-log instrument). Remaining 29% gap = ~3.3 ms/step vLLM overhead vs 8.03 ms ideal — does it amortize at high batch? That's the sweep's question
 - Goodput (TTFT<500ms, TPOT<50ms): ___ tok/s vs raw max ___ tok/s
 
 ## If time remains
