@@ -65,31 +65,33 @@ The theoretical punchline: the FLOP count was never the interesting number. It's
 
 ## X post — final draft (Alex's version, edited)
 
+*Attach: `jax-book-matmul-flops.gif` (from the book's transformers chapter, MIT-licensed; credit "How to Scale Your Model").*
+
 > Day 5/45 of Inference Engineering: Numerical Notes from Linear Algebra
 >
 > A dot product between two vectors of size [P] takes 2P FLOPs and requires a transfer of 2P items of memory. Why?
 >
 > By definition, each pair of items is multiplied together element-wise, and everything is summed together. That's P multiplications and P additions.
 >
-> A mult. between a matrix of size [N, P] and a vector of [P] is N dot products, so N(2P) operations and NP+P item transfers. (N is the output dimension, not a batch. The "batch" in serving is how many *vectors* you push through at once, and a matvec is batch 1.)
+> A mult. between a matrix of size [N, P] and a vector of [P] is N dot products, so N(2P) operations and NP+P item transfers.
 >
-> A mult. between a matrix of size [N, P] and another matrix of [P, M] is M matrix-vector operations, so MN(2P) operations and NP+PM item transfers. Stack B vectors instead of one and that's what a batch actually is: [B, P] × [P, M], with B sitting where N was.
+> Note that N is the output dimension, not a batch. The "batch" is how many "sub-problems" you push through at once, and a matvec is batch 1.
 >
-> For [N, N] matrices, this operation has cubic complexity and quadratic memory transfer, and that's the unusual part. For most operations (matvec included), moving the bytes costs more than doing the math. Matmul is the rare op where growing the problem makes the compute pull *ahead* of the transfer. That's why big matmuls can saturate a chip instead of its memory bus, and a decent one-line explanation of why models are towers of matmuls.
+> A mult. between a matrix of size [N, P] and another matrix of [P, M] is M matrix-vector operations, so MN(2P) operations and NP+PM item transfers.
+>
+> Stack B vectors instead of one and that's what you call a batch: [B, P] × [P, M].
+>
+> For most operations (matvec included), moving the bytes scales with the computation. Matmul is the rare op where growing the problem makes the compute grow faster than the memory traffic. That's why big matmuls can saturate a chip instead of its memory bus, and one of the reasons models are mostly matmuls.
 >
 > Ok, but what about a much bigger multi-dimensional tensor? 👀
 >
-> Same rule, dressed up. When two tensors share dimensions, each shared dim is either CONTRACTING (summed over, like the P above) or BATCHING (it just labels independent copies of the problem). FLOPs = 2 × the product of every dimension involved, counting batch and contracting dims only once.
+> When two tensors share dimensions, each shared dim is either CONTRACTING (summed over, like the P above) or BATCHING (it just labels independent copies of the problem). FLOPs = 2 × the product of every dimension involved, counting batch and contracting dims only once.
 >
-> Why it collapses so cleanly: any tensor contraction is a batched matmul in disguise. Flatten the batch dims into B, the contracting dims into P, whatever's left into N and M, and you're back at B·2NPM. It's still just 2 FLOPs per multiply-add; the shapes only decide how many dot products you owe.
+> Any tensor contraction can be reduced to a batched matmul. Flatten the batch dims into B, the contracting dims into P, whatever's left into N and M, and you're back at B·2NPM.
 >
-> (Attention is exactly this: QKᵀ contracts over head_dim while batch and heads ride along as batch dimensions.)
+> It's been 5 years since my Linear Algebra course. To be honest, I could never get a good intuition for it and the subject always felt invented rather than discovered. The good news is that the Linear Algebra needed to do this stuff is relatively simple and mostly targeted at parallelization, at least from what I've seen so far!
 >
-> A fun bonus:
->
-> It's been 5 years since my Linear Algebra course, and despite approaching it from Abstract Algebra, I've never found it satisfying. I could never get a good intuition for it and it always felt very invented rather than discovered. The good news is that the Linear Algebra needed to do this stuff is relatively simple and mostly targeted at parallelization, at least from what I've seen so far!
->
-> If you're interested in this I recommend Chapter 2 of Lay's Linear Algebra and Its Applications (https://www.amazon.com/dp/032198238X) and Part 1 ("All About Rooflines") of the JAX scaling book, How to Scale Your Model: https://jax-ml.github.io/scaling-book/roofline/
+> If you're interested in this I recommend Chapter 2 of Lay's Linear Algebra and Its Applications and the JAX scaling book, How to Scale Your Model: https://jax-ml.github.io/scaling-book/transformers/
 
 ## Reply tweet — why batch dims only count once (draft)
 
