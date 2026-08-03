@@ -117,6 +117,30 @@ The models diverge hard at INT4 (roughly 320-ish vs 190-ish — fill in exact). 
 - **The H100 question:** rent one (~$2–3/hr) and rerun the FP8 arm with real fp8 tensor cores — the only way to see the W8A8 *compute* win, which should show up in TTFT/prefill, exactly where today's arms show nothing. Probably its own day.
 - **Load-time comparison:** cold `vllm serve` wall-clock per variant — 4× fewer bytes off disk should show up here too (Day 2's cold-start anatomy, revisited).
 
+## Reading-share post (posted before the hands-on work)
+
+*Drafted 2026-08-03 after reading the Visual Guide; the measurement post still comes after the runs. No em dashes. Format: context recap → what I learned.*
+
+*Attach (up to 4, all Grootendorst's, credited in-post): (a) the GGUF super-block/sub-block structure diagram — strongest pick, it IS the Day 1 tie-in; (b) the dynamic quantization flowchart (per-layer scale computed at runtime) — item 2; (c) the weight-vs-activation distributions diagram — item 3; (d) the GPTQ error-redistribution visual — item 3's GPTQ line. The absmax scale-factor mapping is the substitute if any of these crop badly.*
+
+> Day 6/45 of Inference Engineering: a Crash Course in Quantization
+>
+> If you're looking for a quick intro to help understand quantization, I highly recommend "A Visual Guide to Quantization" by Maarten Grootendorst (https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-quantization)
+>
+> In the next day or so I'll be quantizing my own checkpoint and benchmarking it, but not before I do a bunch of background reading!
+>
+> Some interesting facts I recently learned:
+>
+> 1. On most GPUs, 4-bit weights must get dequantized inside the kernel. That means most of the quantization benefits are found in memory and bandwidth, rather than in compute. Native hardware is required to support lower-bit math. Notably, NVIDIA's Blackwell generation (B200, RTX 50 series) and AMD's MI355X both have native FP4 Tensor Cores. Decode is memory-bound, so it still gets faster. But prefill is compute-bound, so the extra dequantization work can actually make the 4-bit model SLOWER than the 16-bit one.
+>
+> 2. Some quantization happens at inference time, per token. Activations depend on the prompt, so they can't be pre-quantized. Schemes like dynamic W8A8 scale and quantize each token's activations on the fly, which does imply additional work during the forward pass, but without assuming the distribution of the activations beforehand.
+>
+> 3. Weights and activations also get treated very differently. Weights never change, so they can go through expensive offline algorithms. GPTQ, for example, doesn't just round each weight to its nearest value. It quantizes a layer weight by weight and pushes each rounding error onto the weights that haven't been quantized yet. The goal is to preserve the layer's OUTPUT, not the weights themselves. Activations have extreme outliers and need to be quantized quickly at runtime, so they usually stay at 8 bits while weights go down to 4.
+>
+> 4. GGUF is a quantization format, not just a file format. Funny thing: I had already measured this without knowing it. On Day 1 my "4-bit" Q4_K_M model came out to ~4.9 bits per weight, because of exactly the block scale factors this article explains, and the file byte ratio (not the nominal bits) is what predicted my measured Q8 vs Q4 speed difference.
+>
+> (All visuals are Maarten's, from the linked article.)
+
 ## Post skeleton
 
 - Hook: "I shrank my model 4× and it decoded only ___× faster. I predicted the shortfall before running — and the missing speed has two names."
