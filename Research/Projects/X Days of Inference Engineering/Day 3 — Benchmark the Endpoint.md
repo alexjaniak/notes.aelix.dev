@@ -15,6 +15,24 @@ Day 2 was plumbing with one number at the end. Today is five predictions, each d
 - **Why decode makes this possible at all.** Every request needs the identical weight pass every step, so a decode step is a natural synchronization point and batching = amortizing the one weight read — this is *the same fact* as the arithmetic-intensity ≈ B claim in the math below. If that isn't obviously the same fact, stop and make it obvious.
 - **What admission actually costs.** When the scheduler admits a new request mid-flight, its prefill has to run somewhere — either stalling decode iterations (TTFT for it, TPOT spike for everyone else) or chunked in alongside them. That tension is prediction 5, and the `/metrics` scrape should show it.
 
+### Reading notes — Orca (OSDI '22)
+
+[ORCA: A Distributed Serving System for Transformer-Based Generative Models](https://www.usenix.org/system/files/osdi22-yu.pdf)
+
+Transformers are auto-regressive, so the output is fed into the input of the next iteration. The iterations end when the transformer hits its max token cap or an end-of-sequence special token.
+
+Naively just batch the requests together and return together. The issue is that if one of the requests in the batch finishes before others, this naive approach doesn't let you return that request until the entire batch of requests finishes — its latency increases unnecessarily.
+
+Similarly, if a new request comes in, it must wait till the batch is finished entirely. This means that batches of requests require an entirely new instance of the model.
+
+The solution is iteration-level scheduling. The scheduler selects which requests get executed at what point and manages a "request pool".
+
+Unfortunately, we can't coalesce tensors of different shapes. We also can't batch the attention operation for requests of different lengths.
+
+You could pad and mask, but then you pay non-insignificant FLOPs. If you batch a 1000-token pre-fill with a 10-token pre-fill, then you do 1000 × 2 work instead of 1010.
+
+In addition, the attention op requires you to look back at the prefixed sequence — (notes trail off here; selective batching is the answer: flatten every token from every request into one [Σ tokens, hidden] tensor for the matmuls, split/merge per-sequence for attention — carried into the post draft below.)
+
 Arc 2.5/2.6 (padding-waste measurement, Rust batching simulator) build this from scratch later; today is concept + live measurement.
 
 ## Debts from Day 2 (do first)

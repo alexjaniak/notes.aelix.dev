@@ -1,6 +1,6 @@
 # Day 4 Writeup — Serving is not decode
 
-*Polished narrative for the sweep executed from [[Day 3 — Benchmark the Endpoint]] (Unit 1.3, [[Curriculum]]). Follows [[Day 2 — Writeup]] and the concept-only [[Day 3 — Writeup]]. Day 4 ran Day 3's deferred measurements plus Day 2's debts; quantization moves to Day 5.*
+*Polished narrative for the sweep executed from [[Day 3 — Benchmark the Endpoint]] (Unit 1.3, [[Curriculum]]). Follows [[Day 2 — Rent a GPU, Serve an Endpoint]] and the concept-only Day 3 (Orca notes + post now live in [[Day 3 — Benchmark the Endpoint]]). Day 4 ran Day 3's deferred measurements plus Day 2's debts; quantization moves to Day 5.*
 
 **The claim, made in public yesterday:** the roofline says 64 concurrent users should each get ~75 tok/s (≈4,800 aggregate), every one of them enjoying what a single user measured. **What happened: 2,505 aggregate, 39.1 each.** The decode roofline that predicted batch-1 within 6% missed batch-64 by 2×, and the miss has a name: serving is not decode. Half the tokens a real endpoint processes are prefill tokens, and the model never billed them.
 

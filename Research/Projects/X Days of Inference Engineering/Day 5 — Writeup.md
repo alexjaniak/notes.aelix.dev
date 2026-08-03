@@ -103,36 +103,3 @@ The theoretical punchline: the FLOP count was never the interesting number. It's
 >
 > Decode attention is exactly case 2: each request's query reads only its own KV cache. The weights of the model are case 1, attention is case 2. My Day 4 throughput model had both terms sitting in the denominator: 16.38 GB of weights (amortized over B) plus 0.147 GB of KV per request (not amortized). Same formula, two kinds of dimensions.
 
-## X post — earlier draft (Claude, single post)
-
-> Day 5/45 of Inference Engineering: a learning day. No GPU today — just the FLOP-counting math that explains every number I've measured this week.
->
-> Counting FLOPs is easy: a P-dim dot product is 2P (multiply + add). A matvec is N of those: 2NP. A matmul is M matvecs: 2NPM. Done — that's a transformer forward pass.
->
-> The interesting part is the *bytes*. A matvec does 2NP FLOPs but streams NP weights: ~1 FLOP per byte, always, no matter the size. That's batch-1 decode — it's why my MacBook's memory bus predicted its token rate on Day 1.
->
-> A matmul is different in kind: compute grows O(N³), data only O(N²). Bigger problem = better FLOPs-per-byte. Matmul is nearly the only op with this property — it's *the* op that can saturate a chip instead of its memory bus, which is a decent one-line explanation of why models are towers of matmuls at all.
->
-> For serving, the shape is [batch B] × [weights]: intensity ≈ B FLOPs/byte. Ridge on my M4 ≈ 37, on an A100 ≈ 160. Decode sits at B=1 (bandwidth-bound, Day 1); a 1,000-token prefill sits at ~1,000 (compute-bound — the term my Day 4 model priced at zero and missed 2× for).
->
-> Then the part I'd never appreciated, via Strang: there are four ways to compute the same AB — dot products, columns, rows, or a sum of rank-1 (column × row) outer products. Identical FLOPs. Completely different memory traffic. And his block-partition rule (blocks multiply like scalars) is literally what a tiled GPU kernel is: load a block-column and block-row into fast memory, accumulate rank-1 updates into the output tile, recurse down to tensor cores.
->
-> The FLOP count is fixed by the shapes. Every trick in kernel engineering is just choosing which mathematically-equivalent ordering moves the fewest bytes. The math says the four forms are interchangeable; the memory hierarchy says they're not even close.
->
-> What surprised me: the matmul form nobody teaches first — columns times rows — is the one hardware actually resembles.
->
-> Day 6: quantizing the model myself.
-
-## X post — shorter alternate
-
-> Day 5/45: learning day. One table explains my whole week:
->
-> dot product: 2P FLOPs / 2P bytes
-> matvec: 2NP FLOPs / NP bytes → intensity ~1, forever
-> matmul: 2NPM FLOPs / (NP+PM) bytes → intensity grows with batch
->
-> Decode is the matvec row (bandwidth-bound — Day 1). Prefill is the matmul row at intensity ~1000 (compute-bound — the term my Day 4 roofline priced at zero, and missed 2×). Compute scales cubically, data quadratically: matmul is the one op that can outrun a memory bus, which is why models are made of it.
->
-> Bonus from Strang: there are 4 equivalent ways to compute AB (dots, rows, columns, sum of rank-1 outer products) — same FLOPs, radically different memory traffic. Tiled GPU kernels are his block-multiplication rule applied recursively. The FLOPs were never the interesting number; the loop order is.
->
-> Day 6: quantizing the model myself.
