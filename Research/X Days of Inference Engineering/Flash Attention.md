@@ -1,0 +1,1 @@
+The two major components in a transformer block are **attention** and **MLP** (multi-layer perceptron). 
